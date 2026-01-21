@@ -1,0 +1,11 @@
+<div class="items-list">
+  <% unless items.any? %>
+    <p class="empty-state">No items found</p>
+  <% end %>
+  
+  <ul>
+    <% items.each do |item| %>
+      <li><%= item.name %></li>
+    <% end %>
+  </ul>
+</div>

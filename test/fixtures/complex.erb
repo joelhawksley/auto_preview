@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= page_title %></title>
+</head>
+<body>
+  <header>
+    <nav>
+      <%= link_to "Home", root_path %>
+      <% if current_user %>
+        <%= link_to current_user.name, profile_path %>
+        <%= link_to "Logout", logout_path %>
+      <% else %>
+        <%= link_to "Login", login_path %>
+      <% end %>
+    </nav>
+  </header>
+
+  <main>
+    <h1><%= @title %></h1>
+    
+    <% if flash[:notice] %>
+      <div class="alert alert-success"><%= flash[:notice] %></div>
+    <% end %>
+    
+    <% if flash[:error] %>
+      <div class="alert alert-danger"><%= flash[:error] %></div>
+    <% end %>
+
+    <section class="products">
+      <% @products.each do |product| %>
+        <article class="product-card">
+          <%= image_tag product.image_url %>
+          <h2><%= product.name %></h2>
+          <p class="price"><%= number_to_currency(product.price) %></p>
+          <p class="description"><%= truncate(product.description, length: 100) %></p>
+          
+          <% if product.in_stock? %>
+            <button>Add to Cart</button>
+          <% else %>
+            <button disabled>Out of Stock</button>
+          <% end %>
+        </article>
+      <% end %>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; <%= Time.now.year %> <%= company_name %></p>
+  </footer>
+</body>
+</html>

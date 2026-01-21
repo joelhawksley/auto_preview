@@ -1,0 +1,51 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "auto_preview"
+require "optparse"
+
+options = {
+  locals: {},
+  mock_values: {}
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: auto_preview [options] FILE"
+
+  opts.on("-l", "--local KEY=VALUE", "Set a local variable (can be used multiple times)") do |local|
+    key, value = local.split("=", 2)
+    options[:locals][key.to_sym] = value
+  end
+
+  opts.on("-m", "--mock KEY=VALUE", "Set a mock value (can be used multiple times)") do |mock|
+    key, value = mock.split("=", 2)
+    options[:mock_values][key.to_sym] = value
+  end
+
+  opts.on("-h", "--help", "Show this help message") do
+    puts opts
+    exit
+  end
+
+  opts.on("-v", "--version", "Show version") do
+    puts AutoPreview::VERSION
+    exit
+  end
+end
+
+parser.parse!
+
+if ARGV.empty?
+  puts parser.help
+  exit 1
+end
+
+file_path = ARGV[0]
+
+begin
+  result = AutoPreview.render(file_path, locals: options[:locals], mock_values: options[:mock_values])
+  puts result
+rescue AutoPreview::Error => e
+  warn "Error: #{e.message}"
+  exit 1
+end

@@ -1,0 +1,12 @@
+<div class="status-badge">
+  <%- case status -%>
+  <%- when "active" -%>
+    <span class="badge badge-green">Active</span>
+  <%- when "pending" -%>
+    <span class="badge badge-yellow">Pending</span>
+  <%- when "inactive" -%>
+    <span class="badge badge-red">Inactive</span>
+  <%- else -%>
+    <span class="badge badge-gray">Unknown</span>
+  <%- end -%>
+</div>

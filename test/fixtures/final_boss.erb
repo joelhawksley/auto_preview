@@ -1,0 +1,377 @@
+<%
+  # Used to show the issue or pull request title.
+  comment                  ||= starting_comment
+  issue                    ||= nil
+  pull                     ||= nil
+  noun                     ||= pull ? "Pull Request" : "Issue"
+  title                    ||= "No title"
+  created_at               ||= comment.created_at
+  author                   ||= comment.safe_user
+  sticky                   ||= false
+  hide_actions             ||= false
+  tasklist_block_enabled   ||= false
+  tags                     ||= []
+  tracking_issues          ||= []
+
+  class_names = "sticky-header-wrapper gh-header mb-3 js-details-container Details js-socket-channel js-updatable-content #{noun.downcase}"
+  class_names += " js-observe-sticky-header-height" if sticky
+
+  can_modify_issue  = can_modify_issue?(issue)
+  show_edit_title_button = local_assigns.fetch(:viewer_can_update, can_modify_issue)
+  show_issue_button = current_repository.has_issues? && (!issue.locked? || current_repository.writable_by?(current_user))
+
+  dom_id = comment ? "#{comment.class.to_s.parameterize}-#{comment.id}" : "comment"
+  completion = issue.hierarchy_completion&.to_h if tasklist_block_enabled && !issue.pull_request? && issue.hierarchy_completion
+  render_tracking_block_progress = completion && completion[:total] > 0
+  render_checklist_progress = !render_tracking_block_progress && !issue.pull_request?
+  render_tracked_in_pill = !issue.pull_request?
+  discussion_for_created_issue = issue.pull_request? ? nil : original_discussion_for_created_issue(issue)
+  render_parent_pr = pull && FeatureFlag.vexi.enabled?(:stacked_pr_banner, current_user, default: false)
+
+  show_files_changed_preview = issue.pull_request? &&
+    (action_name == "files" || (action_name == "commits" && FeatureFlag.vexi.enabled?(:combined_pr_changes_route, current_user, default: false))) &&
+    new_files_changed_show_opt_in?(current_user, params)
+  show_switch_back_to_classic = issue.pull_request? && (action_name == "files" || action_name == "changes") && new_files_changed_feature_enabled_for_user?(current_user, params)
+
+  pull_request_is_in_queue = pull && new_files_changed_feature_enabled_for_user?(current_user, params) && pull.in_merge_queue?
+  is_unlisted = is_unlisted_ff_enabled?(pull_request: pull, current_user:)
+%>
+
+<% header_content = capture do %>
+  <div class="non-sticky-header-container">
+    <div class="gh-header-show <%= "gh-header-no-access" if !can_modify_issue && !show_issue_button %>">
+      <div class="d-flex flex-column flex-md-row flex-items-start flex-md-items-center">
+        <h1 class="gh-header-title mb-2 lh-condensed f1 mr-0 flex-auto wb-break-word">
+          <%= content_tag :bdi, title_markdown(title), class: "js-issue-title markdown-title" %>
+          <span class="f1-light color-fg-muted">#<%= issue.number %></span>
+        </h1>
+
+        <% if current_repository_writable? && !hide_actions %>
+          <div class="gh-header-actions mt-0 mb-3 mb-md-2 ml-1 flex-md-order-1 flex-shrink-0 d-flex flex-items-center gap-1">
+            <div class="d-flex flex-order-2 flex-md-order-1 mx-2">
+              <% if show_files_changed_preview %>
+                <%= form_tag toggle_generic_feature_path(current_repository.owner_display_login, current_repository.name) do %>
+                  <%= hidden_field_tag(:feature_name, "prx_files") %>
+                  <%= emoji_tag(Emoji.find_by_alias("sparkles"), class: "emoji emoji-icon") %>
+                  <%= render Primer::Beta::Button.new(scheme: :link, type: :submit, font_size: 6, font_weight: :normal, test_selector: "prx_files_enable_new_experience") do %>
+                    Try the new experience
+                  <% end %>
+                <% end %>
+              <% elsif show_switch_back_to_classic %>
+                <%= form_tag toggle_generic_feature_path(current_repository.owner_display_login, current_repository.name) do %>
+                  <%= hidden_field_tag(:feature_name, "prx_files") %>
+                  <%= render(Primer::Beta::Label.new(scheme: :success)) { "Preview" } %>
+                  <%= render(Primer::Beta::Button.new(
+                    scheme: :link,
+                    type: :submit,
+                    font_size: 6,
+                    font_weight: :normal,
+                    classes: "ml-1",
+                    test_selector: "prx_files_switch_back_to_classic"
+                  )) do %>
+                    Switch back
+                  <% end %>
+                  <span className="f5">&middot;</span>
+                  <%= render(Primer::Beta::Link.new(
+                    href: "https://gh.io/new-files-changed-feedback",
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                    font_size: 6,
+                    font_weight: :normal,
+                    classes: "no-wrap"
+                  )) do %>
+                    Feedback
+                  <% end %>
+                <% end %>
+              <% end %>
+            </div>
+
+            <% if show_edit_title_button %>
+              <%= render Primer::Beta::Button.new(
+                size: :small,
+                m: 0,
+                mr: [nil, nil, 0],
+                classes: "js-details-target js-title-edit-button flex-md-order-2",
+                aria: { expanded: false, label: "Edit #{noun} title" },
+                ).with_content("Edit") %>
+            <% end %>
+
+            <% if issue.pull_request && logged_in? && !GitHub.enterprise? %>
+              <div class="flex-md-order-2">
+                <get-repo <%= "data-force-codespace-tab-default" if user_feature_enabled?(:codespaces_force_cloud_tab) && Codespaces::DevContainer.any_devcontainers?(current_repository) %>>
+                  <details class="position-relative details-overlay details-reset js-codespaces-details-container hx_dropdown-fullscreen" data-action="toggle:code-menu#onDetailsToggle" <%= test_selector("code-menu-dropdown") %>>
+                    <%= render Primer::Beta::Button.new(
+                      **{
+                        tag: :summary,
+                        float: :none,
+                        size: :small,
+                        scheme: :default,
+                        data: clone_or_download_data_attributes(current_repository),
+                        "aria-description": "Open checkout and codespaces menu",
+                      }.compact
+                    ) do |component| %>
+                      <% component.with_trailing_action_icon(icon: "triangle-down") %>
+                      <% component.with_leading_visual_icon(icon: :code) %>
+
+                      Code
+                    <% end %>
+                    <details-menu src="<%= pull_request_open_with_menu_path(current_repository.owner, current_repository, issue.pull_request, ref: tree_name) %>"><%# erblint:disable Primer::Accessibility::DetailsMenuMigration %>
+                      <%= render Primer::Alpha::IncludeFragment.new %>
+                    </details-menu>
+                  </details>
+                </get-repo>
+              </div>
+            <% end %>
+            <% if logged_in? || GitHub.enterprise? %>
+              <% if show_issue_button && !issue.pull_request %>
+                <% if emu_contribution_blocked?(current_repository) %>
+                  <%= render Primer::Beta::Button.new(size: :small, scheme: :primary, "aria-disabled": "true", id: "disabled_new_issue_button") do |component| %>
+                    <% component.with_tooltip(text: emu_contribute_block_hint) %>
+                    New issue
+                  <% end %>
+                <% else %>
+                  <%= render Primer::Beta::Button.new(tag: :a, scheme: :primary, size: :small, classes: "flex-md-order-2", "data-hotkey": "c", href: choose_issue_path(current_repository.owner, current_repository)).with_content("New issue") %>
+                <% end %>
+              <% end %>
+            <% else %>
+              <%= render layout: "shared/spacious_details_dialog", locals: {
+                button_class: "btn btn-sm btn-primary m-0 ml-0 ml-md-2",
+                button_text: "New issue",
+                details_class: "float-right",
+                hide_title: true,
+                title: "Sign up for GitHub"
+              } do %>
+                <%= render partial: "logged_out_modals/new_issue_w_new_signup_modal" %>
+              <% end %>
+            <% end %>
+            <% if !pull || (pull && tab_specified?(:discussion)) %>
+              <div class="flex-auto text-right d-block d-md-none">
+                <a href="#issue-comment-box" class="py-1">Jump to bottom</a>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <% if can_modify_issue?(issue) %>
+      <div class="gh-header-edit mb-2 position-relative">
+        <%= form_for issue,
+            :method => :put,
+            :html => {
+              :id => "edit_header_#{issue.id}",
+              :class => "js-issue-update js-comment d-flex flex-column flex-md-row"
+            } do |f| %>
+          <text-expander keys=":" data-emoji-url="<%= emoji_suggestions_path %>" class="flex-auto d-flex">
+            <%= f.text_field :title, :class => "js-quick-submit flex-auto input-lg input-contrast mr-0 mr-md-2", :autofocus => true, :autocomplete => 'off',
+                            "aria-label" => "#{noun} title" %>
+          </text-expander>
+          <div class="mt-2 mt-md-0 d-inline-flex gap-1">
+            <%= render Primer::Beta::Button.new(type: :submit, "data-disable-with": "Updating") do %>Save<% end %>
+            <%= render Primer::Beta::Button.new(scheme: :invisible, classes: "js-details-target js-cancel-issue-edit", "aria-expanded": "true") do %>Cancel<% end %>
+          </div>
+        <% end %>
+        <div class="comment-form-error js-comment-form-error" role="alert" hidden></div>
+      </div>
+    <% end %>
+    <div class="d-flex flex-items-center flex-wrap mt-0 gh-header-meta">
+      <div class="flex-shrink-0 mb-2 flex-self-start flex-md-self-center">
+        <% if pull %>
+          <%= render PullRequests::StateComponent.new(
+            state: pull.state.to_sym,
+            is_draft: pull.draft?,
+            is_queued: pull_request_is_in_queue,
+            reviewable_state: pull.reviewable_state,
+            is_unlisted: is_unlisted
+          ) %>
+        <% else %>
+          <%= render Closables::StateComponent.new(closable: issue) %>
+        <% end %>
+      </div>
+
+      <% if render_checklist_progress %>
+        <div class="mb-2 flex-shrink-0">
+          <%= render partial: "issues/checklist_progress", locals: {
+              issue: issue,
+              render_mode: :title,
+              sticky: sticky,
+            }
+          %>
+        </div>
+      <% end %>
+
+      <% if render_tracking_block_progress %>
+        <div class="mb-2 flex-shrink-0">
+          <%= render partial: "issues/tracking_block_progress", locals: {
+              completion: completion,
+              issue: issue,
+              tasklist_block_enabled: tasklist_block_enabled,
+              render_mode: :title,
+              sticky: sticky,
+            }
+          %>
+        </div>
+      <% end %>
+
+      <% if render_tracked_in_pill %>
+        <div class="flex-shrink-0 mb-2 flex-self-start flex-md-self-center">
+          <% track_render_partial("issues/tracked_in_pill", tags) do %>
+            <%= render partial: "issues/tracked_in_pill", locals: {
+                issue: issue,
+                tracking_issues: tracking_issues,
+              }
+            %>
+          <% end %>
+        </div>
+      <% end %>
+
+      <% if render_parent_pr %>
+        <%= render PullRequests::ParentPrComponent.new(pull_request: pull) %>
+      <% end %>
+
+      <div class="flex-auto min-width-0 mb-2">
+        <% if pull %>
+          <%= render "pull_requests/description", pull: pull %>
+        <% else %>
+          <%= render "issues/description", issue: issue, author: author, created_at: created_at, noun: noun, discussion_for_created_issue: discussion_for_created_issue %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <% if sticky %>
+    <div class="col-12 js-toggle-stuck" data-toggle-sticky-element="partial-discussion-header,sticky-header-backdrop"></div>
+  <% end %>
+
+  <% if sticky %>
+    <div class="sticky-header-container">
+      <div class="sticky-content">
+        <div class="d-flex flex-items-center flex-justify-between pt-2">
+          <div class="d-flex flex-row flex-items-center min-width-0">
+            <div class="mr-2 mb-1 flex-shrink-0">
+              <% if pull %>
+                <%= render PullRequests::StateComponent.new(
+                  state: pull.state.to_sym,
+                  is_draft: pull.draft?,
+                  is_queued: pull_request_is_in_queue,
+                  reviewable_state: pull.reviewable_state,
+                  is_unlisted: is_unlisted
+                ) %>
+              <% else %>
+                <%= render Closables::StateComponent.new(closable: issue) %>
+              <% end %>
+            </div>
+
+            <% if render_tracking_block_progress %>
+              <div class="mb-1 flex-shrink-0">
+                <%= render partial: "issues/tracking_block_progress", locals: {
+                    completion: completion,
+                    issue: issue,
+                    tasklist_block_enabled: tasklist_block_enabled,
+                    render_mode: :title_small,
+                    sticky: sticky,
+                  }
+                %>
+              </div>
+            <% end %>
+
+            <% if render_checklist_progress %>
+              <div class="mb-2 flex-shrink-0">
+                <%= render partial: "issues/checklist_progress", locals: {
+                    issue: issue,
+                    render_mode: :title_small,
+                    sticky: sticky,
+                  }
+                %>
+              </div>
+            <% end %>
+
+            <% if render_tracked_in_pill %>
+              <div class="mb-2 flex-shrink-0">
+                <% track_render_partial("issues/tracked_in_pill", tags) do %>
+                  <%= render partial: "issues/tracked_in_pill", locals: {
+                      issue: issue,
+                      tracking_issues: tracking_issues,
+                    }
+                  %>
+                <% end %>
+              </div>
+            <% end %>
+
+            <div class="min-width-0 mr-2 mb-1">
+              <%= render :partial => "comments/title/sticky_title", :locals => { title: title, number: issue.number } %>
+              <div class="meta color-fg-muted css-truncate css-truncate-target d-block width-fit">
+                <% if pull %>
+                  <%= render :partial => 'pull_requests/description', locals: { pull: pull, author_link_attributes: { "data-hovercard-z-index-override": "111" }, editing_enabled: false, sticky: sticky } %>
+                <% else %>
+                  <%= render :partial => 'issues/description',
+                    locals: {
+                      issue: issue,
+                      author: author,
+                      created_at: created_at,
+                      noun: noun,
+                      author_link_attributes: { "data-hovercard-z-index-override": "111" },
+                      discussion_for_created_issue: discussion_for_created_issue
+                    }
+                  %>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+<div class="pr-alerts-banner">
+  <% if pull && pull.open? && rename = pull.errored_base_branch_rename %>
+    <%= render "pull_requests/branch_rename_failed_notice", rename: rename %>
+  <% end %>
+
+  <% if pull %>
+    <% track_render_partial("pull_requests/paused_dependabot_updates") do %>
+      <%= render Dependabot::PausedUpdatesPullRequestBannerComponent.new(pull_request: pull, repository: current_repository) %>
+    <% end %>
+  <% end %>
+
+  <% if pull %>
+    <% track_render_partial("pull_requests/dependabot_alerts_banner") do %>
+      <% if current_repository.automated_security_updates_visible_to?(current_user) %>
+        <%= render DependabotAlerts::PullRequestBannerComponent.new(pull_request: pull, repository: current_repository) %>
+      <% end %>
+    <% end %>
+  <% end %>
+
+  <% if pull && pull.head_ref_contains_non_printing_chars? %>
+    <%= render(Primer::Alpha::Banner.new(scheme: :warning, mt: 1, dismiss_scheme: :remove)) do %>
+      The head ref may contain hidden characters: <span class="branch-name"><%= pull.display_head_ref_name.dump %></span>
+    <% end %>
+  <% end %>
+</div>
+<% end %>
+
+<% if issue.pull_request %>
+  <%= content_tag :div,
+    header_content,
+    id: "partial-discussion-header",
+    class: "#{class_names} js-pull-header-details",
+    data: {
+      channel: live_update_view_channel(GitHub::WebSocket::Channels.pull_request(issue.pull_request)),
+      url: pull_request_title_partial_path(id: issue.pull_request, sticky: sticky),
+      channel_event_name: "title_updated",
+      pull_is_open: issue.pull_request.open?,
+      gid: issue.pull_request.global_relay_id
+    }
+  %>
+<% else %>
+  <%= content_tag :div,
+    header_content,
+    id: "partial-discussion-header",
+    class: class_names,
+    data: {
+      channel: live_update_view_channel(GitHub::WebSocket::Channels.issue(issue)),
+      url: show_partial_issue_path(id: issue, partial: "issues/title", sticky: sticky),
+      gid: issue.global_relay_id
+    }
+  %>
+<% end %>
