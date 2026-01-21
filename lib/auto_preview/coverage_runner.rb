@@ -67,6 +67,9 @@ module AutoPreview
       computed_deps = erb_analyzer.computed_variable_dependencies
       dependency_vars = computed_deps.values.flatten.uniq
       
+      # Get computed variable expressions with structure info
+      computed_exprs = erb_analyzer.computed_variable_expressions
+      
       # Get boolean variables, excluding:
       # - case variables (handled separately with their when values)
       # - block variable conditions  
@@ -82,16 +85,18 @@ module AutoPreview
       end
       
       # Always use minimal branch coverage approach - just need each branch true/false once
-      generate_minimal_branch_coverage(bool_vars, case_values, block_conditions, string_comparisons)
+      generate_minimal_branch_coverage(bool_vars, case_values, block_conditions, string_comparisons, computed_exprs)
     end
     
-    def generate_minimal_branch_coverage(bool_vars, case_values, block_conditions, string_comparisons = {})
+    def generate_minimal_branch_coverage(bool_vars, case_values, block_conditions, string_comparisons = {}, computed_exprs = {})
       # Strategy for minimal branch coverage:
       # 1. Base permutation with all true - hits all "then" branches
       # 2. Base permutation with all false - hits all "else" branches  
       # 3. For nested conditionals, we need permutations where outer guards pass
       #    but inner conditions vary. We approximate this by adding permutations
       #    where each variable is flipped individually from base_true.
+      # 4. For computed variables with AND/OR expressions, generate permutations
+      #    that specifically make those computed variables true/false.
       
       permutations = []
       
@@ -169,7 +174,148 @@ module AutoPreview
       # Add pairwise combinations for nested conditional coverage
       add_pairwise_permutations(permutations, bool_vars, base_true)
       
+      # Add permutations specifically designed to make computed variables true/false
+      add_computed_variable_permutations(permutations, computed_exprs, base_true, base_false)
+      
       permutations.uniq
+    end
+    
+    # Generate permutations that make computed variables evaluate to true or false
+    # by setting their dependencies appropriately based on expression structure
+    def add_computed_variable_permutations(permutations, computed_exprs, base_true, base_false)
+      computed_exprs.each do |var_name, expr_info|
+        next unless expr_info
+        
+        # Generate permutations to make this computed variable true
+        true_perms = permutations_for_expression_value(expr_info, true, base_true)
+        true_perms.each { |p| permutations << p unless permutations.include?(p) }
+        
+        # Generate permutations to make this computed variable false
+        false_perms = permutations_for_expression_value(expr_info, false, base_true)
+        false_perms.each { |p| permutations << p unless permutations.include?(p) }
+      end
+    end
+    
+    # Generate permutations that would make the given expression evaluate to target_value
+    def permutations_for_expression_value(expr_info, target_value, base_perm)
+      return [] unless expr_info
+      
+      results = []
+      
+      case expr_info[:type]
+      when :and
+        if target_value
+          # For AND to be true, both sides must be true
+          # Combine permutations from left and right
+          left_perms = permutations_for_expression_value(expr_info[:left], true, base_perm)
+          right_perms = permutations_for_expression_value(expr_info[:right], true, base_perm)
+          
+          # Merge left and right permutations
+          if left_perms.empty? && right_perms.empty?
+            results << base_perm.dup
+          elsif left_perms.empty?
+            results.concat(right_perms)
+          elsif right_perms.empty?
+            results.concat(left_perms)
+          else
+            left_perms.each do |lp|
+              right_perms.each do |rp|
+                merged = lp.merge(rp)
+                results << merged
+              end
+            end
+          end
+        else
+          # For AND to be false, either side can be false
+          left_perms = permutations_for_expression_value(expr_info[:left], false, base_perm)
+          right_perms = permutations_for_expression_value(expr_info[:right], false, base_perm)
+          results.concat(left_perms)
+          results.concat(right_perms)
+        end
+        
+      when :or
+        if target_value
+          # For OR to be true, either side can be true
+          left_perms = permutations_for_expression_value(expr_info[:left], true, base_perm)
+          right_perms = permutations_for_expression_value(expr_info[:right], true, base_perm)
+          results.concat(left_perms)
+          results.concat(right_perms)
+        else
+          # For OR to be false, both sides must be false
+          left_perms = permutations_for_expression_value(expr_info[:left], false, base_perm)
+          right_perms = permutations_for_expression_value(expr_info[:right], false, base_perm)
+          
+          if left_perms.empty? && right_perms.empty?
+            results << base_perm.dup
+          elsif left_perms.empty?
+            results.concat(right_perms)
+          elsif right_perms.empty?
+            results.concat(left_perms)
+          else
+            left_perms.each do |lp|
+              right_perms.each do |rp|
+                merged = lp.merge(rp)
+                results << merged
+              end
+            end
+          end
+        end
+        
+      when :not
+        # For NOT, invert the target value for the inner expression
+        inner_perms = permutations_for_expression_value(expr_info[:inner], !target_value, base_perm)
+        results.concat(inner_perms)
+        
+      when :call
+        # Single method call - set its value directly
+        perm = base_perm.dup
+        perm[expr_info[:name]] = target_value
+        results << perm
+        
+      when :ternary
+        # For ternary, we need condition true with then_expr, or condition false with else_expr
+        if target_value
+          # Either: condition true AND then_expr true, OR condition false AND else_expr true
+          cond_true_perms = permutations_for_expression_value(expr_info[:condition], true, base_perm)
+          then_perms = permutations_for_expression_value(expr_info[:then_expr], true, base_perm)
+          cond_true_perms.each do |cp|
+            then_perms.each { |tp| results << cp.merge(tp) }
+          end
+          
+          cond_false_perms = permutations_for_expression_value(expr_info[:condition], false, base_perm)
+          else_perms = permutations_for_expression_value(expr_info[:else_expr], true, base_perm)
+          cond_false_perms.each do |cp|
+            else_perms.each { |ep| results << cp.merge(ep) }
+          end
+        else
+          # Either: condition true AND then_expr false, OR condition false AND else_expr false
+          cond_true_perms = permutations_for_expression_value(expr_info[:condition], true, base_perm)
+          then_perms = permutations_for_expression_value(expr_info[:then_expr], false, base_perm)
+          cond_true_perms.each do |cp|
+            then_perms.each { |tp| results << cp.merge(tp) }
+          end
+          
+          cond_false_perms = permutations_for_expression_value(expr_info[:condition], false, base_perm)
+          else_perms = permutations_for_expression_value(expr_info[:else_expr], false, base_perm)
+          cond_false_perms.each do |cp|
+            else_perms.each { |ep| results << cp.merge(ep) }
+          end
+        end
+        
+      when :unknown
+        # For unknown expressions with deps, set all deps to target value
+        if expr_info[:deps]&.any?
+          perm = base_perm.dup
+          expr_info[:deps].each { |dep| perm[dep] = target_value }
+          results << perm
+        end
+        
+      when :local_var
+        # Local variable - can't directly control, skip
+        results << base_perm.dup
+      end
+      
+      results.uniq
     end
     
     def add_pairwise_permutations(permutations, bool_vars, base_true)

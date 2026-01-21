@@ -96,6 +96,36 @@ module AutoPreview
       deps
     end
 
+    # Extracts computed variable expressions with their structure
+    # Returns hash of { computed_var => { type: :and/:or/:call, deps: [...], expr: ast_info } }
+    # This helps generate permutations that can make computed vars true or false
+    def computed_variable_expressions
+      exprs = {}
+      
+      # Parse the ERB to find Ruby code blocks
+      result = Herb.parse(erb_source)
+      return exprs unless result.value
+      
+      # Collect all ERB content nodes
+      erb_contents = []
+      collect_erb_content(result.value, erb_contents)
+      
+      # Parse each Ruby code block with Prism
+      erb_contents.each do |content|
+        ruby_code = content.strip
+        next if ruby_code.empty?
+        
+        begin
+          prism_result = Prism.parse(ruby_code)
+          extract_expression_structure(prism_result.value, exprs)
+        rescue
+          # Skip unparseable code fragments
+        end
+      end
+      
+      exprs
+    end
+
     # Detects string comparisons in computed variable assignments
     # e.g., action_name == "files" -> { "action_name" => ["files", "commits", ...] }
     # Returns hash of { variable => [possible_values] }
@@ -158,6 +188,82 @@ module AutoPreview
       
       # Recurse into child nodes
       node.compact_child_nodes.each { |child| extract_string_comparisons(child, comparisons) }
+    end
+    
+    def extract_expression_structure(node, exprs)
+      return unless node
+      
+      case node
+      when Prism::LocalVariableWriteNode
+        # var = expr - analyze the expression structure
+        if complex_expression?(node.value)
+          var_name = node.name.to_s
+          expr_info = analyze_expression(node.value)
+          exprs[var_name] = expr_info if expr_info
+        end
+      end
+      
+      # Recurse into child nodes
+      node.compact_child_nodes.each { |child| extract_expression_structure(child, exprs) }
+    end
+    
+    def analyze_expression(node)
+      return nil unless node
+      
+      case node
+      when Prism::AndNode
+        left = analyze_expression(node.left)
+        right = analyze_expression(node.right)
+        { type: :and, left: left, right: right, deps: collect_all_deps([left, right]) }
+        
+      when Prism::OrNode
+        left = analyze_expression(node.left)
+        right = analyze_expression(node.right)
+        { type: :or, left: left, right: right, deps: collect_all_deps([left, right]) }
+        
+      when Prism::CallNode
+        method_name = node.name.to_s
+        
+        # Handle negation operator (!)
+        if method_name == "!" && node.receiver
+          inner = analyze_expression(node.receiver)
+          return { type: :not, inner: inner, deps: inner ? inner[:deps] : [] }
+        end
+        
+        call_path = build_call_path(node)
+        return nil unless call_path
+        { type: :call, name: call_path, deps: [call_path] }
+        
+      when Prism::ParenthesesNode
+        analyze_expression(node.body)
+        
+      when Prism::StatementsNode
+        # For single statement, return its analysis
+        return analyze_expression(node.body.first) if node.body.length == 1
+        nil
+        
+      when Prism::LocalVariableReadNode
+        { type: :local_var, name: node.name.to_s, deps: [] }
+        
+      when Prism::IfNode
+        # Ternary expression: condition ? then : else
+        cond = analyze_expression(node.predicate)
+        then_expr = analyze_expression(node.statements)
+        else_expr = analyze_expression(node.subsequent)
+        { type: :ternary, condition: cond, then_expr: then_expr, else_expr: else_expr, 
+          deps: collect_all_deps([cond, then_expr, else_expr]) }
+        
+      else
+        # Try to extract any method calls
+        method_calls = []
+        collect_boolean_method_calls(node, method_calls)
+        return nil if method_calls.empty?
+        { type: :unknown, deps: method_calls }
+      end
+    end
+    
+    def collect_all_deps(exprs)
+      exprs.compact.flat_map { |e| e[:deps] || [] }.uniq
     end
     
     def extract_dependencies(node, deps)

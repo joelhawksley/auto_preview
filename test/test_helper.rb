@@ -46,8 +46,8 @@ SimpleCov.at_exit do
       exit 2
     end
     
-    if branch_coverage < 85.0
-      warn "Library branch coverage (#{branch_coverage}%) is below 85%"
+    if branch_coverage < 100.0
+      warn "Library branch coverage (#{branch_coverage}%) is below 100%"
       exit 2
     end
   end
