@@ -1,0 +1,55 @@
+{
+  "Unit Tests": {
+    "coverage": {
+      "/Users/joelhawksley/joelhawksley/auto_preview/lib/auto_preview.rb": {
+        "lines": [
+          null,
+          null,
+          1,
+          1,
+          null,
+          1,
+          null
+        ],
+        "branches": {}
+      },
+      "/Users/joelhawksley/joelhawksley/auto_preview/lib/auto_preview/engine.rb": {
+        "lines": [
+          null,
+          null,
+          1,
+          1,
+          1,
+          null,
+          null
+        ],
+        "branches": {}
+      },
+      "/Users/joelhawksley/joelhawksley/auto_preview/config/routes.rb": {
+        "lines": [
+          null,
+          null,
+          1,
+          1,
+          null
+        ],
+        "branches": {}
+      },
+      "/Users/joelhawksley/joelhawksley/auto_preview/app/controllers/auto_preview/previews_controller.rb": {
+        "lines": [
+          null,
+          null,
+          1,
+          1,
+          1,
+          1,
+          null,
+          null,
+          null
+        ],
+        "branches": {}
+      }
+    },
+    "timestamp": 1769107222
+  }
+}

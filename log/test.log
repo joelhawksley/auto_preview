@@ -1,0 +1,8 @@
+----------------------------------------------------------------------------
+AutoPreview::PreviewsControllerTest: test_show_renders_template_with_message
+----------------------------------------------------------------------------
+Started GET "/auto_preview/previews/show" for 127.0.0.1 at 2026-01-22 11:40:22 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Rendering auto_preview/previews/show.html.erb
+  Rendered auto_preview/previews/show.html.erb (Duration: 0.1ms | GC: 0.0ms)
+Completed 200 OK in 23ms (Views: 22.0ms | GC: 0.0ms)
