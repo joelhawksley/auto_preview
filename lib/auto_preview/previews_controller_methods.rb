@@ -45,16 +45,15 @@ module AutoPreview
       controller_class = controller_name.constantize
       render_path = template_path.sub(/\.html\.erb$/, "")
 
-      # Create a view context with the target controller's helpers
-      helpers_module = controller_class._helpers if controller_class.respond_to?(:_helpers)
-      view_context_class = Class.new(ActionView::Base)
-      view_context_class.include(helpers_module) if helpers_module
-
-      lookup_context = ActionView::LookupContext.new(view_paths)
-      view_context = view_context_class.with_empty_template_cache.new(lookup_context, locals, self)
-
       begin
-        content = view_context.render(template: render_path, locals: locals)
+        content = if controller_class.respond_to?(:render)
+          controller_class.render(template: render_path, locals: locals)
+        else
+          # Fallback for controllers without ActionController::Rendering
+          lookup_context = ActionView::LookupContext.new(view_paths)
+          view_context = ActionView::Base.with_empty_template_cache.new(lookup_context, locals, self)
+          view_context.render(template: render_path, locals: locals)
+        end
         render html: content.html_safe, layout: false
       rescue ActionView::Template::Error => e
         if e.cause.is_a?(NameError)

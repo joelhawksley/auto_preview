@@ -262,6 +262,19 @@ module AutoPreview
       assert_includes response.body, "Home Page"
     end
 
+    def test_show_renders_with_controller_layout
+      # Test that the layout from the controller context is rendered
+      get "/auto_preview/show", params: {
+        template: "pages/home.html.erb",
+        controller_context: "PagesController"
+      }
+
+      assert_response :success
+      assert_includes response.body, "<html><body>"
+      assert_includes response.body, "</body></html>"
+      assert_includes response.body, "Home Page"
+    end
+
     def test_find_controllers_skips_nonexistent_paths
       # This test covers the `next unless path.exist?` branch in find_controllers
       controller = PreviewsController.new
