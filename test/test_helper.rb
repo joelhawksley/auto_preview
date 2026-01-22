@@ -50,3 +50,17 @@ end
 
 require "minitest/autorun"
 require "rails/test_help"
+require "capybara/minitest"
+
+class SystemTestCase < ActionDispatch::IntegrationTest
+  include Capybara::DSL
+  include Capybara::Minitest::Assertions
+
+  def setup
+    Capybara.app = Rails.application
+  end
+
+  def teardown
+    Capybara.reset_sessions!
+  end
+end
