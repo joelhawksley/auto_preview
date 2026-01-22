@@ -21,6 +21,7 @@ class DummyApp < Rails::Application
   config.eager_load = false
   config.hosts << "www.example.com"
   config.secret_key_base = "test_secret_key_base_for_auto_preview_gem"
+  config.paths["app/views"] << File.expand_path("views", __dir__)
 end
 
 Rails.application.initialize!

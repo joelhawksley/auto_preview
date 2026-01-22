@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AutoPreview</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+    h1 { color: #333; }
+    form { margin-top: 20px; }
+    select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 10px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>AutoPreview</h1>
+  <p>Select an ERB template to preview:</p>
+
+  <% if @erb_files.any? %>
+    <%= form_tag url_for(action: :show), method: :get do %>
+      <%= select_tag :template, options_for_select(@erb_files), prompt: "Select a template..." %>
+      <%= submit_tag "Preview", data: { disable_with: "Loading..." } %>
+    <% end %>
+  <% else %>
+    <p><em>No ERB templates found in app/views.</em></p>
+  <% end %>
+</body>
+</html>

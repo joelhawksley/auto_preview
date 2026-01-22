@@ -1,0 +1,154 @@
+Started GET "/" for ::1 at 2026-01-22 11:50:38 -0700
+Redirected to http://localhost:3000/auto_preview
+Completed 301 Moved Permanently in 0ms
+
+
+Started GET "/auto_preview" for ::1 at 2026-01-22 11:50:38 -0700
+Processing by AutoPreview::PreviewsController#index as HTML
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 0.7ms | GC: 0.2ms)
+Completed 200 OK in 8ms (Views: 3.1ms | GC: 0.4ms)
+
+
+Started GET "/favicon.ico" for ::1 at 2026-01-22 11:50:39 -0700
+  
+ActionController::RoutingError (No route matches [GET] "/favicon.ico"):
+  
+Started GET "/auto_preview/show?utf8=%E2%9C%93&template=auto_preview%2Fpreviews%2Findex.html&commit=Preview" for ::1 at 2026-01-22 11:50:42 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Parameters: {"utf8" => "✓", "template" => "auto_preview/previews/index.html", "commit" => "Preview"}
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 2.1ms | GC: 0.0ms)
+Completed 500 Internal Server Error in 4ms (GC: 0.3ms)
+
+
+  
+ActionView::Template::Error (undefined method 'any?' for nil)
+Caused by: NoMethodError (undefined method 'any?' for nil)
+
+Information for: ActionView::Template::Error (undefined method 'any?' for nil):
+    14:   <h1>AutoPreview</h1>
+    15:   <p>Select an ERB template to preview:</p>
+    16: 
+    17:   <% if @erb_files.any? %>
+    18:     <%= form_tag url_for(action: :show), method: :get do %>
+    19:       <%= select_tag :template, options_for_select(@erb_files), prompt: "Select a template..." %>
+    20:       <%= submit_tag "Preview", data: { disable_with: "Loading..." } %>
+  
+app/views/auto_preview/previews/index.html.erb:17
+app/controllers/auto_preview/previews_controller.rb:19:in 'AutoPreview::PreviewsController#show'
+
+Information for cause: NoMethodError (undefined method 'any?' for nil):
+  
+app/views/auto_preview/previews/index.html.erb:17
+app/controllers/auto_preview/previews_controller.rb:19:in 'AutoPreview::PreviewsController#show'
+Started GET "/?id=bcd0ff83-d49f-4b77-b178-7da7a878a124&vscodeBrowserReqId=1769107853029" for 127.0.0.1 at 2026-01-22 11:50:53 -0700
+Redirected to http://127.0.0.1:3000/auto_preview
+Completed 301 Moved Permanently in 1ms
+
+
+Started GET "/auto_preview" for 127.0.0.1 at 2026-01-22 11:50:53 -0700
+Processing by AutoPreview::PreviewsController#index as HTML
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 0.6ms | GC: 0.4ms)
+Completed 200 OK in 5ms (Views: 1.3ms | GC: 3.6ms)
+
+
+Started GET "/auto_preview" for ::1 at 2026-01-22 11:51:23 -0700
+Processing by AutoPreview::PreviewsController#index as HTML
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 0.4ms | GC: 0.0ms)
+Completed 200 OK in 7ms (Views: 0.9ms | GC: 4.5ms)
+
+
+Started GET "/auto_preview" for ::1 at 2026-01-22 11:51:23 -0700
+Processing by AutoPreview::PreviewsController#index as HTML
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 0.4ms | GC: 0.0ms)
+Completed 200 OK in 2ms (Views: 1.0ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview/show?utf8=%E2%9C%93&template=pages%2Fabout.html&commit=Preview" for ::1 at 2026-01-22 11:51:26 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Parameters: {"utf8" => "✓", "template" => "pages/about.html", "commit" => "Preview"}
+  Rendering pages/about.html.erb
+  Rendered pages/about.html.erb (Duration: 0.6ms | GC: 0.0ms)
+Completed 200 OK in 9ms (Views: 7.5ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview/show?utf8=%E2%9C%93&template=pages%2Fhome.html&commit=Preview" for ::1 at 2026-01-22 11:51:33 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Parameters: {"utf8" => "✓", "template" => "pages/home.html", "commit" => "Preview"}
+  Rendering pages/home.html.erb
+  Rendered pages/home.html.erb (Duration: 0.3ms | GC: 0.0ms)
+Completed 200 OK in 5ms (Views: 3.4ms | GC: 0.3ms)
+
+
+Started GET "/auto_preview/show?utf8=%E2%9C%93&template=pages%2Fwelcome.html&commit=Preview" for ::1 at 2026-01-22 11:51:38 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Parameters: {"utf8" => "✓", "template" => "pages/welcome.html", "commit" => "Preview"}
+  Rendering pages/welcome.html.erb
+  Rendered pages/welcome.html.erb (Duration: 0.3ms | GC: 0.0ms)
+Completed 200 OK in 12ms (Views: 11.1ms | GC: 0.1ms)
+
+
+Started GET "/auto_preview" for ::1 at 2026-01-22 11:54:16 -0700
+Processing by AutoPreview::PreviewsController#index as HTML
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 0.6ms | GC: 0.0ms)
+Completed 200 OK in 8ms (Views: 2.9ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview" for ::1 at 2026-01-22 11:54:17 -0700
+Processing by AutoPreview::PreviewsController#index as HTML
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 0.6ms | GC: 0.0ms)
+Completed 200 OK in 8ms (Views: 1.6ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview/show?utf8=%E2%9C%93&template=pages%2Fabout.html&commit=Preview" for ::1 at 2026-01-22 11:54:19 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Parameters: {"utf8" => "✓", "template" => "pages/about.html", "commit" => "Preview"}
+  Rendering pages/about.html.erb
+  Rendered pages/about.html.erb (Duration: 0.3ms | GC: 0.0ms)
+Completed 200 OK in 4ms (Views: 2.1ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview" for ::1 at 2026-01-22 11:55:26 -0700
+Processing by AutoPreview::PreviewsController#index as HTML
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 0.5ms | GC: 0.0ms)
+Completed 200 OK in 5ms (Views: 1.3ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview/show?utf8=%E2%9C%93&template=pages%2Fhome.html&commit=Preview" for ::1 at 2026-01-22 11:55:37 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Parameters: {"utf8" => "✓", "template" => "pages/home.html", "commit" => "Preview"}
+  Rendering pages/home.html.erb
+  Rendered pages/home.html.erb (Duration: 0.5ms | GC: 0.0ms)
+Completed 200 OK in 5ms (Views: 2.3ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview/show?utf8=%E2%9C%93&template=pages%2Fabout.html&commit=Preview" for ::1 at 2026-01-22 11:55:41 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Parameters: {"utf8" => "✓", "template" => "pages/about.html", "commit" => "Preview"}
+  Rendering pages/about.html.erb
+  Rendered pages/about.html.erb (Duration: 0.1ms | GC: 0.0ms)
+Completed 200 OK in 3ms (Views: 0.9ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview" for ::1 at 2026-01-22 11:56:31 -0700
+Processing by AutoPreview::PreviewsController#index as HTML
+  Rendering auto_preview/previews/index.html.erb
+  Rendered auto_preview/previews/index.html.erb (Duration: 1.2ms | GC: 0.0ms)
+Completed 200 OK in 7ms (Views: 2.6ms | GC: 0.0ms)
+
+
+Started GET "/auto_preview/show?utf8=%E2%9C%93&template=pages%2Fhome.html.erb&commit=Preview" for ::1 at 2026-01-22 11:56:34 -0700
+Processing by AutoPreview::PreviewsController#show as HTML
+  Parameters: {"utf8" => "✓", "template" => "pages/home.html.erb", "commit" => "Preview"}
+  Rendering pages/home.html.erb
+  Rendered pages/home.html.erb (Duration: 0.2ms | GC: 0.0ms)
+Completed 200 OK in 3ms (Views: 1.5ms | GC: 0.0ms)
+
+
