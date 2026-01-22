@@ -22,7 +22,19 @@ class DummyApp < Rails::Application
   config.hosts << "www.example.com"
   config.secret_key_base = "test_secret_key_base_for_auto_preview_gem"
   config.paths["app/views"] << File.expand_path("views", __dir__)
+  config.paths["app/helpers"] << File.expand_path("../app/helpers", __dir__)
 end
+
+# Load the application helper
+require_relative "../app/helpers/application_helper"
+
+# Base controller for the host application
+class ApplicationController < ActionController::Base
+  helper ApplicationHelper
+end
+
+# Configure AutoPreview to use the host app's ApplicationController
+AutoPreview.parent_controller = "ApplicationController"
 
 Rails.application.initialize!
 

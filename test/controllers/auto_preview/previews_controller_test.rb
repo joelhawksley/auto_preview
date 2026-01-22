@@ -28,6 +28,16 @@ module AutoPreview
       assert_includes response.body, "<h1>Home Page</h1>"
     end
 
+    def test_show_renders_template_using_application_helper
+      get "/auto_preview/show", params: {
+        template: "pages/with_helper.html.erb",
+        vars: { name: { type: "String", value: "World" } }
+      }
+
+      assert_response :success
+      assert_includes response.body, "Hello, World! Welcome to the app."
+    end
+
     def test_show_returns_not_found_for_missing_template
       get "/auto_preview/show", params: { template: "nonexistent/template" }
 
@@ -506,6 +516,33 @@ module AutoPreview
       result = scanner.send(:template_path_to_virtual_path, "pages/home.html.erb")
 
       assert_equal "pages/home", result
+    end
+
+    def test_engine_recreates_controller_on_reload
+      # Simulate code reloading by triggering to_prepare again
+      # This should remove and recreate the PreviewsController constant
+      assert AutoPreview.const_defined?(:PreviewsController, false)
+
+      # Trigger the to_prepare callback manually
+      Rails.application.reloader.prepare!
+
+      # Controller should still exist and work
+      assert AutoPreview.const_defined?(:PreviewsController, false)
+      assert AutoPreview::PreviewsController < ApplicationController
+    end
+
+    def test_engine_creates_controller_when_not_defined
+      # Test the else branch - when PreviewsController doesn't exist yet
+      # Remove it first
+      AutoPreview.send(:remove_const, :PreviewsController)
+      refute AutoPreview.const_defined?(:PreviewsController, false)
+
+      # Trigger to_prepare - should create the controller
+      Rails.application.reloader.prepare!
+
+      # Controller should now exist
+      assert AutoPreview.const_defined?(:PreviewsController, false)
+      assert AutoPreview::PreviewsController < ApplicationController
     end
   end
 end
