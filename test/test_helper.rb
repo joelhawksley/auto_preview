@@ -26,8 +26,14 @@ end
 
 Rails.application.initialize!
 
+# Load test controllers
+require_relative "controllers/pages_controller"
+
 Rails.application.routes.draw do
   mount AutoPreview::Engine => "/auto_preview"
+
+  get "pages/home", to: "pages#home"
+  get "pages/about", to: "pages#about"
 end
 
 require "minitest/autorun"
