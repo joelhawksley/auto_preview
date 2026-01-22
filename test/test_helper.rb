@@ -13,20 +13,36 @@ require "bundler/setup"
 require "rails"
 require "action_controller/railtie"
 require "action_view/railtie"
+require "active_record/railtie"
 
 require "auto_preview"
+require "factory_bot_rails"
 
 # Dummy Rails application for testing
 class DummyApp < Rails::Application
   config.eager_load = false
   config.hosts << "www.example.com"
   config.secret_key_base = "test_secret_key_base_for_auto_preview_gem"
+  config.active_record.maintain_test_schema = false
 end
 
 # Configure AutoPreview to use the host app's ApplicationController
 AutoPreview.parent_controller = "ApplicationController"
 
 Rails.application.initialize!
+
+# Set up in-memory SQLite database
+ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
+ActiveRecord::Schema.define do
+  create_table :users, force: true do |t|
+    t.string :name
+    t.string :email
+    t.timestamps
+  end
+end
+
+# Load the User model
+require_relative "../app/models/user"
 
 Rails.application.routes.draw do
   mount AutoPreview::Engine => "/auto_preview"

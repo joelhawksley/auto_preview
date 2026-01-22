@@ -12,6 +12,8 @@ log/*.log
 # Temp files
 tmp/
 
+db/
+
 # Coverage reports
 coverage/
 

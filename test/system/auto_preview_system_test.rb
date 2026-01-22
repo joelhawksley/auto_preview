@@ -149,4 +149,51 @@ class AutoPreviewSystemTest < SystemTestCase
     # Should still render successfully even without helpers
     assert_text "Home Page"
   end
+
+  test "factory type variable renders user from factory" do
+    initial_user_count = User.count
+
+    visit "/auto_preview"
+
+    select "pages/user_card.html.erb", from: "template"
+    click_button "Preview"
+
+    # Should be prompted for user variable
+    assert_text "Missing Variable"
+    assert_text "user"
+
+    # Select Factory type and enter factory name
+    # (rack_test doesn't execute JS, so we fill value directly)
+    select "Factory", from: "var_type"
+    fill_in "var_value", with: "user"
+    click_button "Continue Preview"
+
+    # Should render the template with factory-created user
+    assert_text "John Doe"
+    assert_text "john@example.com"
+
+    # Factory should be rolled back - no new records persisted
+    assert_equal initial_user_count, User.count
+  end
+
+  test "factory type variable with trait" do
+    initial_user_count = User.count
+
+    visit "/auto_preview"
+
+    select "pages/user_card.html.erb", from: "template"
+    click_button "Preview"
+
+    # Select Factory type and enter factory name with trait
+    select "Factory", from: "var_type"
+    fill_in "var_value", with: "user:admin"
+    click_button "Continue Preview"
+
+    # Should render the template with admin trait values
+    assert_text "Admin User"
+    assert_text "admin@example.com"
+
+    # Factory should be rolled back - no new records persisted
+    assert_equal initial_user_count, User.count
+  end
 end

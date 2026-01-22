@@ -275,6 +275,47 @@ module AutoPreview
       assert_includes response.body, "Home Page"
     end
 
+    def test_show_renders_template_with_factory_variable
+      initial_count = User.count
+
+      get "/auto_preview/show", params: {
+        template: "pages/user_card.html.erb",
+        vars: { user: { type: "Factory", value: "user" } }
+      }
+
+      assert_response :success
+      assert_includes response.body, "John Doe"
+      assert_includes response.body, "john@example.com"
+      # Factory should be rolled back - no new records persisted
+      assert_equal initial_count, User.count
+    end
+
+    def test_show_renders_template_with_factory_trait
+      initial_count = User.count
+
+      get "/auto_preview/show", params: {
+        template: "pages/user_card.html.erb",
+        vars: { user: { type: "Factory", value: "user:admin" } }
+      }
+
+      assert_response :success
+      assert_includes response.body, "Admin User"
+      assert_includes response.body, "admin@example.com"
+      # Factory should be rolled back - no new records persisted
+      assert_equal initial_count, User.count
+    end
+
+    def test_show_prompts_for_variable_with_factory_option
+      get "/auto_preview/show", params: { template: "pages/user_card.html.erb" }
+
+      assert_response :success
+      assert_includes response.body, "Missing Variable"
+      assert_includes response.body, "Factory"
+      # Should show available factories in dropdown
+      assert_includes response.body, "user"
+      assert_includes response.body, "user:admin"
+    end
+
     def test_find_controllers_skips_nonexistent_paths
       # This test covers the `next unless path.exist?` branch in find_controllers
       controller = PreviewsController.new
@@ -366,12 +407,74 @@ module AutoPreview
 
     def test_build_locals_skips_invalid_config_format
       controller = PreviewsController.new
-      controller.params = ActionController::Parameters.new({
-        vars: { name: "just a string, not a hash" }
-      })
+      vars_params = ActionController::Parameters.new({ name: "just a string, not a hash" })
 
-      result = controller.send(:build_locals_from_params)
+      result = controller.send(:build_locals_from_params, vars_params)
       assert_equal({}, result)
+    end
+
+    def test_create_from_factory_returns_nil_when_value_blank
+      controller = PreviewsController.new
+
+      result = controller.send(:create_from_factory, "")
+      assert_nil result
+
+      result = controller.send(:create_from_factory, nil)
+      assert_nil result
+    end
+
+    def test_create_from_factory_without_factory_bot_defined
+      controller = PreviewsController.new
+
+      # Temporarily hide FactoryBot constant
+      original_factory_bot = Object.send(:remove_const, :FactoryBot)
+      begin
+        result = controller.send(:create_from_factory, "user")
+        assert_nil result
+      ensure
+        Object.const_set(:FactoryBot, original_factory_bot)
+      end
+    end
+
+    def test_find_factories_without_factory_bot_defined
+      controller = PreviewsController.new
+
+      # Temporarily hide FactoryBot constant
+      original_factory_bot = Object.send(:remove_const, :FactoryBot)
+      begin
+        result = controller.send(:find_factories)
+        assert_equal [], result
+      ensure
+        Object.const_set(:FactoryBot, original_factory_bot)
+      end
+    end
+
+    def test_extract_provided_local_names_returns_empty_for_invalid_params
+      controller = PreviewsController.new
+
+      result = controller.send(:extract_provided_local_names, nil)
+      assert_equal [], result
+
+      result = controller.send(:extract_provided_local_names, "not a hash")
+      assert_equal [], result
+    end
+
+    def test_build_locals_from_params_returns_empty_for_nil
+      controller = PreviewsController.new
+
+      result = controller.send(:build_locals_from_params, nil)
+      assert_equal({}, result)
+    end
+
+    def test_find_factories_returns_factories_with_traits
+      controller = PreviewsController.new
+
+      factories = controller.send(:find_factories)
+
+      # Should include the user factory
+      user_factory = factories.find { |f| f[:name] == "user" }
+      assert_not_nil user_factory
+      assert_includes user_factory[:traits], "admin"
     end
   end
 
