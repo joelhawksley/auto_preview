@@ -19,13 +19,23 @@ module AutoPreview
       @template_path = template_path
       @locals = build_locals_from_params
 
+      # Check if template requires locals that haven't been provided
+      required_locals = locals_scanner.locals_for(template_path)
+      provided_locals = @locals.keys.map(&:to_s)
+      missing_locals = required_locals - provided_locals
+
+      if missing_locals.any?
+        prompt_for_local(missing_locals.first, template_path)
+        return
+      end
+
       # Remove .html.erb suffix if present since Rails adds it back
       render_path = template_path.sub(/\.html\.erb$/, "")
 
       begin
         render template: render_path, layout: false, locals: @locals
       rescue ActionView::Template::Error => e
-        # ActionView wraps NameError in Template::Error
+        # Fallback: ActionView wraps NameError in Template::Error
         if e.cause.is_a?(NameError)
           handle_name_error(e.cause, template_path)
         else
@@ -35,6 +45,28 @@ module AutoPreview
     end
 
     private
+
+    def locals_scanner
+      @locals_scanner ||= LocalsScanner.new(
+        view_paths: view_paths,
+        controller_paths: controller_paths
+      )
+    end
+
+    def controller_paths
+      # Find controller directories in the app
+      Rails.application.config.paths["app/controllers"].expanded
+    end
+
+    def prompt_for_local(missing_variable, template_path)
+      @missing_variable = missing_variable
+      @template_path = template_path
+      existing = params[:vars]
+      @existing_vars = existing.respond_to?(:keys) ? existing : {}
+      @ruby_types = RUBY_TYPES
+
+      render template: "auto_preview/previews/variable_form", layout: false
+    end
 
     def build_locals_from_params
       locals = {}

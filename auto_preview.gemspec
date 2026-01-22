@@ -29,4 +29,5 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "rails", "~> 8.1"
+  spec.add_dependency "actionview_precompiler", "~> 0.4"
 end
