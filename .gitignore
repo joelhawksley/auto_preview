@@ -1,0 +1,33 @@
+# Bundler
+/.bundle/
+vendor/bundle/
+
+# Gem build
+*.gem
+pkg/
+
+# Logs
+log/*.log
+
+# Temp files
+tmp/
+
+# Coverage reports
+coverage/
+
+# IDE/Editor
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+
+# macOS
+.DS_Store
+
+# Ruby version managers
+.ruby-version
+.ruby-gemset
+
+# Gemfile.lock for gems (optional - uncomment if you want to ignore it)
+# Gemfile.lock

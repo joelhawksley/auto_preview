@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AutoPreview - Define Variable</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; margin-bottom: 10px; }
+    h2 { color: #666; font-size: 1.1em; margin-top: 0; }
+    .error-box {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .error-box code {
+      background: #f8f9fa;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+      color: #d63384;
+    }
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #333;
+    }
+    select, input[type="text"], textarea {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    select:focus, input[type="text"]:focus, textarea:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    }
+    textarea {
+      min-height: 80px;
+      font-family: monospace;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      width: 100%;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .existing-vars {
+      background: #e9ecef;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .existing-vars h3 {
+      margin-top: 0;
+      font-size: 0.9em;
+      color: #666;
+    }
+    .existing-vars ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .existing-vars li {
+      margin-bottom: 5px;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+    .type-hint {
+      font-size: 0.85em;
+      color: #666;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>AutoPreview</h1>
+  <h2>Template: <%= @template_path %></h2>
+
+  <div class="error-box">
+    <strong>Missing Variable:</strong> The template requires a variable named <code><%= @missing_variable %></code>.
+    <br>Please provide a type and value below.
+  </div>
+
+  <% if @existing_vars.present? && @existing_vars.keys.any? %>
+    <div class="existing-vars">
+      <h3>Already defined variables:</h3>
+      <ul>
+        <% @existing_vars.each do |name, config| %>
+          <li><strong><%= name %></strong> (<%= config[:type] %>): <%= config[:value].inspect %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_tag url_for(action: :show), method: :get do %>
+    <%= hidden_field_tag :template, @template_path %>
+
+    <%# Preserve existing variables %>
+    <% if @existing_vars.present? %>
+      <% @existing_vars.each do |name, config| %>
+        <%= hidden_field_tag "vars[#{name}][type]", config[:type] %>
+        <%= hidden_field_tag "vars[#{name}][value]", config[:value] %>
+      <% end %>
+    <% end %>
+
+    <div class="form-group">
+      <label for="var_type">Type for <code><%= @missing_variable %></code></label>
+      <%= select_tag "vars[#{@missing_variable}][type]",
+                     options_for_select(@ruby_types),
+                     id: "var_type",
+                     onchange: "updateValueHint(this.value)" %>
+      <p class="type-hint" id="type-hint">Enter any text value</p>
+    </div>
+
+    <div class="form-group">
+      <label for="var_value">Value</label>
+      <%= text_area_tag "vars[#{@missing_variable}][value]",
+                        nil,
+                        id: "var_value",
+                        placeholder: "Enter value..." %>
+    </div>
+
+    <%= submit_tag "Continue Preview", data: { disable_with: "Loading..." } %>
+  <% end %>
+
+  <script>
+    function updateValueHint(type) {
+      const hint = document.getElementById('type-hint');
+      const valueInput = document.getElementById('var_value');
+
+      const hints = {
+        'String': 'Enter any text value',
+        'Integer': 'Enter a whole number (e.g., 42)',
+        'Float': 'Enter a decimal number (e.g., 3.14)',
+        'Boolean': 'Enter "true", "1", "yes" for true; anything else for false',
+        'Array': 'Enter JSON array (e.g., ["a", "b", "c"] or [1, 2, 3])',
+        'Hash': 'Enter JSON object (e.g., {"key": "value"})',
+        'NilClass': 'Value will be nil (input ignored)'
+      };
+
+      const placeholders = {
+        'String': 'Hello World',
+        'Integer': '42',
+        'Float': '3.14',
+        'Boolean': 'true',
+        'Array': '["item1", "item2"]',
+        'Hash': '{"key": "value"}',
+        'NilClass': '(nil)'
+      };
+
+      hint.textContent = hints[type] || 'Enter a value';
+      valueInput.placeholder = placeholders[type] || 'Enter value...';
+
+      if (type === 'NilClass') {
+        valueInput.disabled = true;
+        valueInput.value = '';
+      } else {
+        valueInput.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
