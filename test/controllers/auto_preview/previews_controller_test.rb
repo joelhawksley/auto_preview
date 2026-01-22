@@ -249,6 +249,29 @@ module AutoPreview
       # The existing var should be preserved in the form
       assert_includes response.body, "Jane Doe"
     end
+
+    def test_show_renders_with_controller_without_helpers
+      # Test rendering with a controller that doesn't respond to _helpers
+      # This covers the else branch of `if controller_class.respond_to?(:_helpers)`
+      get "/auto_preview/show", params: {
+        template: "pages/home.html.erb",
+        controller_context: "MinimalController"
+      }
+
+      assert_response :success
+      assert_includes response.body, "Home Page"
+    end
+
+    def test_find_controllers_skips_nonexistent_paths
+      # This test covers the `next unless path.exist?` branch in find_controllers
+      controller = PreviewsController.new
+
+      controller.stub(:controller_paths, ["/nonexistent/path"]) do
+        result = controller.send(:find_controllers)
+        # ActionController::Base is always included
+        assert_equal ["ActionController::Base"], result
+      end
+    end
   end
 
   class PreviewsControllerUnitTest < ActiveSupport::TestCase
@@ -342,7 +365,7 @@ module AutoPreview
   class LocalsScannerTest < ActiveSupport::TestCase
     def test_scans_template_for_render_calls_with_locals
       scanner = LocalsScanner.new(
-        view_paths: [File.expand_path("../../views", __dir__)]
+        view_paths: [File.expand_path("../../../app/views", __dir__)]
       )
 
       # The dashboard template renders user_profile with user_name and user_email
@@ -354,7 +377,7 @@ module AutoPreview
 
     def test_returns_empty_array_for_template_without_known_locals
       scanner = LocalsScanner.new(
-        view_paths: [File.expand_path("../../views", __dir__)]
+        view_paths: [File.expand_path("../../../app/views", __dir__)]
       )
 
       # home.html.erb is not rendered with locals anywhere
@@ -383,7 +406,7 @@ module AutoPreview
 
     def test_caches_template_locals
       scanner = LocalsScanner.new(
-        view_paths: [File.expand_path("../../views", __dir__)]
+        view_paths: [File.expand_path("../../../app/views", __dir__)]
       )
 
       # Call twice to test caching
@@ -430,7 +453,7 @@ module AutoPreview
 
     def test_locals_for_with_non_partial_path
       scanner = LocalsScanner.new(
-        view_paths: [File.expand_path("../../views", __dir__)]
+        view_paths: [File.expand_path("../../../app/views", __dir__)]
       )
 
       # Test non-partial version (pages/user_profile vs pages/_user_profile)

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module AutoPreview
-  # Controller functionality as a module - the actual PreviewsController class
-  # is created dynamically in the engine to inherit from the configured parent
+  # Controller for the AutoPreview UI. Handles template listing and dispatches
+  # rendering to the selected controller context.
   module PreviewsControllerMethods
     extend ActiveSupport::Concern
 
@@ -10,10 +10,12 @@ module AutoPreview
 
     def index
       @erb_files = find_erb_files
+      @controllers = find_controllers
     end
 
     def show
       template_path = params[:template]
+      @controller_context = params[:controller_context] || AutoPreview.parent_controller
 
       if template_path.blank? || !valid_template?(template_path)
         render plain: "Template not found", status: :not_found
@@ -29,17 +31,32 @@ module AutoPreview
       missing_locals = required_locals - provided_locals
 
       if missing_locals.any?
-        prompt_for_local(missing_locals.first, template_path)
+        prompt_for_local(missing_locals.first, template_path, @controller_context)
         return
       end
 
-      # Remove .html.erb suffix if present since Rails adds it back
+      # Render using the selected controller's context
+      render_with_controller_context(@controller_context, template_path, @locals)
+    end
+
+    private
+
+    def render_with_controller_context(controller_name, template_path, locals)
+      controller_class = controller_name.constantize
       render_path = template_path.sub(/\.html\.erb$/, "")
 
+      # Create a view context with the target controller's helpers
+      helpers_module = controller_class._helpers if controller_class.respond_to?(:_helpers)
+      view_context_class = Class.new(ActionView::Base)
+      view_context_class.include(helpers_module) if helpers_module
+
+      lookup_context = ActionView::LookupContext.new(view_paths)
+      view_context = view_context_class.with_empty_template_cache.new(lookup_context, locals, self)
+
       begin
-        render template: render_path, layout: false, locals: @locals
+        content = view_context.render(template: render_path, locals: locals)
+        render html: content.html_safe, layout: false
       rescue ActionView::Template::Error => e
-        # Fallback: ActionView wraps NameError in Template::Error
         if e.cause.is_a?(NameError)
           handle_name_error(e.cause, template_path)
         else
@@ -48,7 +65,40 @@ module AutoPreview
       end
     end
 
-    private
+    def handle_name_error(error, template_path)
+      match = error.message.match(/undefined local variable or method [`'](\w+)'/)
+
+      if match
+        prompt_for_local(match[1], template_path, @controller_context)
+      else
+        raise error
+      end
+    end
+
+    def find_controllers
+      controllers = ["ActionController::Base"]
+
+      controller_paths.each do |controller_path|
+        path = Pathname.new(controller_path)
+        next unless path.exist?
+
+        Dir.glob(path.join("**", "*_controller.rb")).each do |file|
+          relative = Pathname.new(file).relative_path_from(path).to_s
+          # Convert file path to controller class name
+          # e.g., "pages_controller.rb" -> "PagesController"
+          # e.g., "admin/users_controller.rb" -> "Admin::UsersController"
+          class_name = relative
+            .sub(/\.rb$/, "")
+            .split("/")
+            .map { |part| part.camelize }
+            .join("::")
+
+          controllers << class_name
+        end
+      end
+
+      controllers.uniq.sort
+    end
 
     def locals_scanner
       @locals_scanner ||= LocalsScanner.new(
@@ -58,13 +108,13 @@ module AutoPreview
     end
 
     def controller_paths
-      # Find controller directories in the app
       Rails.application.config.paths["app/controllers"].expanded
     end
 
-    def prompt_for_local(missing_variable, template_path)
+    def prompt_for_local(missing_variable, template_path, controller_context)
       @missing_variable = missing_variable
       @template_path = template_path
+      @controller_context = controller_context
       existing = params[:vars]
       @existing_vars = existing.respond_to?(:keys) ? existing : {}
       @ruby_types = RUBY_TYPES
@@ -114,24 +164,6 @@ module AutoPreview
       JSON.parse(value)
     rescue JSON::ParserError
       default
-    end
-
-    def handle_name_error(error, template_path)
-      # Extract undefined variable name from error message
-      # NameError messages look like: "undefined local variable or method `name' for ..."
-      match = error.message.match(/undefined local variable or method [`'](\w+)'/)
-
-      if match
-        @missing_variable = match[1]
-        @template_path = template_path
-        existing = params[:vars]
-        @existing_vars = existing.respond_to?(:keys) ? existing : {}
-        @ruby_types = RUBY_TYPES
-
-        render template: "auto_preview/previews/variable_form", layout: false
-      else
-        raise error
-      end
     end
 
     def find_erb_files

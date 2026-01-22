@@ -6,8 +6,10 @@
     body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
     h1 { color: #333; }
     form { margin-top: 20px; }
-    select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 10px; }
+    label { display: block; margin-bottom: 5px; font-weight: 600; }
+    select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 15px; }
     button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    .form-group { margin-bottom: 15px; }
   </style>
 </head>
 <body>
@@ -16,7 +18,19 @@
 
   <% if @erb_files.any? %>
     <%= form_tag url_for(action: :show), method: :get do %>
-      <%= select_tag :template, options_for_select(@erb_files), prompt: "Select a template..." %>
+      <div class="form-group">
+        <label for="template">Template</label>
+        <%= select_tag :template, options_for_select(@erb_files), prompt: "Select a template...", id: "template" %>
+      </div>
+
+      <div class="form-group">
+        <label for="controller_context">Controller Context</label>
+        <%= select_tag :controller_context, options_for_select(@controllers, AutoPreview.parent_controller), id: "controller_context" %>
+        <p style="font-size: 0.85em; color: #666; margin-top: 5px;">
+          The template will be rendered with the selected controller's helpers available.
+        </p>
+      </div>
+
       <%= submit_tag "Preview", data: { disable_with: "Loading..." } %>
     <% end %>
   <% else %>

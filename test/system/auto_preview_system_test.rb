@@ -126,4 +126,27 @@ class AutoPreviewSystemTest < SystemTestCase
 
     assert_text "Home Page"
   end
+
+  test "controller context dropdown shows available controllers" do
+    visit "/auto_preview"
+
+    # Verify the controller dropdown exists and contains expected controllers
+    assert_selector "select#controller_context"
+
+    # Check that discovered controllers are in the dropdown
+    assert_selector "select#controller_context option", text: "MinimalController"
+    assert_selector "select#controller_context option", text: "PagesController"
+  end
+
+  test "rendering with different controller context" do
+    visit "/auto_preview"
+
+    # Select a template and MinimalController context
+    select "pages/home.html.erb", from: "template"
+    select "MinimalController", from: "controller_context"
+    click_button "Preview"
+
+    # Should still render successfully even without helpers
+    assert_text "Home Page"
+  end
 end

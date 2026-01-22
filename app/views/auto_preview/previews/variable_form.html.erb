@@ -120,6 +120,7 @@
 
   <%= form_tag url_for(action: :show), method: :get do %>
     <%= hidden_field_tag :template, @template_path %>
+    <%= hidden_field_tag :controller_context, @controller_context %>
 
     <%# Preserve existing variables %>
     <% if @existing_vars.present? %>
