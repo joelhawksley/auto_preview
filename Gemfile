@@ -13,3 +13,5 @@ gem "factory_bot_rails"
 gem "sqlite3"
 
 gem "standardrb", "~> 1.0"
+
+gem "m", "~> 1.7"

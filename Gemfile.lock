@@ -128,6 +128,8 @@ GEM
     loofah (2.25.0)
       crass (~> 1.0.2)
       nokogiri (>= 1.12.0)
+    m (1.7.0)
+      rake
     mail (2.9.0)
       logger
       mini_mime (>= 0.1.1)
@@ -307,6 +309,7 @@ DEPENDENCIES
   auto_preview!
   capybara
   factory_bot_rails
+  m (~> 1.7)
   minitest (~> 5.0)
   puma
   rake (~> 13.0)
@@ -354,6 +357,7 @@ CHECKSUMS
   lint_roller (1.1.0) sha256=2c0c845b632a7d172cb849cc90c1bce937a28c5c8ccccb50dfd46a485003cc87
   logger (1.7.0) sha256=196edec7cc44b66cfb40f9755ce11b392f21f7967696af15d274dde7edff0203
   loofah (2.25.0) sha256=df5ed7ac3bac6a4ec802df3877ee5cc86d027299f8952e6243b3dac446b060e6
+  m (1.7.0) sha256=058f793da8150c51353cc59366ffae7774683e868bede3c78f81d920fb9d633a
   mail (2.9.0) sha256=6fa6673ecd71c60c2d996260f9ee3dd387d4673b8169b502134659ece6d34941
   marcel (1.1.0) sha256=fdcfcfa33cc52e93c4308d40e4090a5d4ea279e160a7f6af988260fa970e0bee
   matrix (0.4.3) sha256=a0d5ab7ddcc1973ff690ab361b67f359acbb16958d1dc072b8b956a286564c5b
