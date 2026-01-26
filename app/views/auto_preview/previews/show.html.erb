@@ -267,17 +267,27 @@
     <aside class="auto-preview-sidebar">
       <div class="auto-preview-sidebar-header">
         <h1>AutoPreview</h1>
-        <%= link_to "← Back to templates", url_for(action: :index) %>
-      </div>
-
-      <div class="auto-preview-template-info">
-        Template: <code><%= @template_path %></code>
       </div>
 
       <div class="auto-preview-sidebar-body">
         <%= form_tag url_for(action: :show), method: :get, id: "autoPreviewForm" do %>
-          <%= hidden_field_tag :template, @template_path %>
-          <%= hidden_field_tag :controller_context, @controller_context %>
+          <div class="auto-preview-section">
+            <div class="auto-preview-section-title">Template</div>
+            <select class="auto-preview-type-select" name="template" onchange="this.form.submit()">
+              <% @erb_files.each do |file| %>
+                <option value="<%= file %>" <%= 'selected' if file == @template_path %>><%= file %></option>
+              <% end %>
+            </select>
+          </div>
+
+          <div class="auto-preview-section">
+            <div class="auto-preview-section-title">Controller Context</div>
+            <select class="auto-preview-type-select" name="controller_context" id="controller_context" onchange="this.form.submit()">
+              <% @controllers.each do |controller| %>
+                <option value="<%= controller %>" <%= 'selected' if controller == @controller_context %>><%= controller %></option>
+              <% end %>
+            </select>
+          </div>
 
           <% vars = @existing_vars.respond_to?(:to_unsafe_h) ? @existing_vars.to_unsafe_h : (@existing_vars || {}) %>
 

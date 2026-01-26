@@ -55,6 +55,8 @@ module AutoPreview
         @existing_vars = auto_generated_vars
         @template_source = read_template_source(template_path)
         @factories = FactoryHelper.all
+        @erb_files = find_erb_files
+        @controllers = find_controllers
 
         render template: "auto_preview/previews/show", layout: false
       rescue ActionView::Template::Error => e
