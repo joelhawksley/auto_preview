@@ -24,19 +24,12 @@ module AutoPreview
 
       @template_path = template_path
 
-      # Check if template requires locals that haven't been provided
-      required_locals = locals_scanner.locals_for(template_path)
-      provided_locals = extract_provided_local_names(params[:vars])
-      missing_locals = required_locals - provided_locals
-
-      if missing_locals.any?
-        prompt_for_local(missing_locals.first, template_path, @controller_context)
-        return
-      end
+      # Auto-generate values for any missing locals
+      vars_params = auto_fill_missing_locals(template_path, params[:vars])
 
       # Render using the selected controller's context, wrapped in a transaction
       # that gets rolled back to prevent factory-created records from persisting
-      render_with_controller_context(@controller_context, template_path, params[:vars])
+      render_with_controller_context(@controller_context, template_path, vars_params)
     end
 
     private
@@ -52,10 +45,14 @@ module AutoPreview
       render_path = template_path.sub(/\.html\.erb$/, "")
 
       content = nil
+      auto_generated_vars = vars_params || {}
+      max_retries = 20  # Prevent infinite loops
+      retries = 0
+
       begin
         ActiveRecord::Base.transaction do
-          locals = build_locals_from_params(vars_params)
-          predicate_methods = build_predicate_methods_from_params(vars_params)
+          locals = build_locals_from_params(auto_generated_vars)
+          predicate_methods = build_predicate_methods_from_params(auto_generated_vars)
           content = render_template_content(controller_class, render_path, locals, predicate_methods)
           raise ActiveRecord::Rollback
         end
@@ -66,7 +63,7 @@ module AutoPreview
           locals: {
             template_path: template_path,
             controller_context: controller_name,
-            existing_vars: vars_params,
+            existing_vars: auto_generated_vars,
             ruby_types: RUBY_TYPES,
             factories: find_factories
           }
@@ -75,11 +72,85 @@ module AutoPreview
         content_with_overlay = inject_overlay_into_body(content, overlay_html)
         render html: content_with_overlay.html_safe, layout: false
       rescue ActionView::Template::Error => e
-        if e.cause.is_a?(NameError) || e.cause.is_a?(NoMethodError)
-          handle_name_error(e.cause, template_path)
-        else
-          raise e
+        if (e.cause.is_a?(NameError) || e.cause.is_a?(NoMethodError)) && retries < max_retries
+          missing_var = extract_missing_variable_name(e.cause)
+          if missing_var
+            auto_generated_vars = add_auto_generated_value(auto_generated_vars, missing_var)
+            retries += 1
+            retry
+          end
         end
+        raise e
+      end
+    end
+
+    def extract_missing_variable_name(error)
+      # Match both NameError and NoMethodError message formats
+      match = error.message.match(/undefined (?:local variable or )?method [`']([\w\?]+)'/)
+      match ? match[1] : nil
+    end
+
+    def add_auto_generated_value(vars, variable_name)
+      if vars.respond_to?(:to_unsafe_h)
+        vars = vars.to_unsafe_h.deep_dup
+      elsif vars.is_a?(Hash)
+        vars = vars.deep_dup
+      else
+        vars = {}
+      end
+      type, value = infer_type_and_value(variable_name)
+      vars[variable_name] = {"type" => type, "value" => value}
+      vars
+    end
+
+    def infer_type_and_value(variable_name)
+      name = variable_name.to_s
+
+      # Predicate methods (ends with ?)
+      if name.end_with?("?")
+        return ["Boolean", "true"]
+      end
+
+      # Check if there's a matching factory
+      if defined?(FactoryBot)
+        factory_name = name.singularize
+        if FactoryBot.factories.any? { |f| f.name.to_s == factory_name }
+          return ["Factory", factory_name]
+        end
+      end
+
+      # Infer type from common naming patterns
+      case name
+      when /^(is_|has_|can_|should_|enable|disable|show|hide|allow|active|visible|confirmed|verified|valid)/
+        ["Boolean", "true"]
+      when /(_id|_count|count|number|age|year|index|position|quantity|amount|total|size|length)$/
+        ["Integer", "42"]
+      when /(_price|_rate|_amount|price|rate|cost|percentage|ratio)$/
+        ["Float", "19.99"]
+      when /(_at|_on|_date|date|time|timestamp)$/
+        ["String", Time.now.iso8601]
+      when /(_url|url|link|href)$/
+        ["String", "https://example.com"]
+      when /(email|mail)$/
+        ["String", "user@example.com"]
+      when /(name|title|label)$/
+        ["String", "Example #{name.humanize}"]
+      when /(description|body|content|text|message|comment)$/
+        ["String", "This is sample #{name.humanize.downcase} content."]
+      when /(_items|_list|items|list|tags|options|values|records|collection)$/
+        ["Array", "[]"]
+      when /(_data|_config|_options|_settings|data|config|options|settings|attributes|params|metadata)$/
+        ["Hash", "{}"]
+      when /(user|admin|author|owner|creator|member|person|customer|client|employee|manager)/
+        # Check for user factory specifically
+        if defined?(FactoryBot) && FactoryBot.factories.any? { |f| f.name.to_s == "user" }
+          ["Factory", "user"]
+        else
+          ["String", "John Doe"]
+        end
+      else
+        # Default to String with a human-readable placeholder
+        ["String", "Sample #{name.humanize}"]
       end
     end
 
@@ -105,17 +176,6 @@ module AutoPreview
         end
 
         view_context.render(template: render_path, locals: locals)
-      end
-    end
-
-    def handle_name_error(error, template_path)
-      # Match both NameError and NoMethodError message formats
-      match = error.message.match(/undefined (?:local variable or )?method [`']([\w\?]+)'/)
-
-      if match
-        prompt_for_local(match[1], template_path, @controller_context)
-      else
-        raise error
       end
     end
 
@@ -155,16 +215,21 @@ module AutoPreview
       Rails.application.config.paths["app/controllers"].expanded
     end
 
-    def prompt_for_local(missing_variable, template_path, controller_context)
-      @missing_variable = missing_variable
-      @template_path = template_path
-      @controller_context = controller_context
-      existing = params[:vars]
-      @existing_vars = existing.respond_to?(:keys) ? existing : {}
-      @ruby_types = RUBY_TYPES
-      @factories = find_factories
+    def auto_fill_missing_locals(template_path, provided_vars)
+      required_locals = locals_scanner.locals_for(template_path)
+      provided_locals = extract_provided_local_names(provided_vars)
+      missing_locals = required_locals - provided_locals
 
-      render template: "auto_preview/previews/variable_form", layout: false
+      return provided_vars if missing_locals.empty?
+
+      vars = provided_vars.respond_to?(:to_unsafe_h) ? provided_vars.to_unsafe_h.deep_dup : (provided_vars || {}).deep_dup
+
+      missing_locals.each do |var_name|
+        type, value = infer_type_and_value(var_name)
+        vars[var_name] = {"type" => type, "value" => value}
+      end
+
+      vars
     end
 
     def build_locals_from_params(vars_params)

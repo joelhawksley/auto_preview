@@ -3,7 +3,7 @@
 require "test_helper"
 
 class AutoPreviewSystemTest < SystemTestCase
-  test "multi variable template happy path" do
+  test "multi variable template auto-fills and renders" do
     # Visit the index page
     visit "/auto_preview"
 
@@ -11,109 +11,52 @@ class AutoPreviewSystemTest < SystemTestCase
     select "pages/multi_var.html.erb", from: "template"
     click_button "Preview"
 
-    # Should be prompted for first_var
-    assert_text "Missing Variable"
-    assert_text "first_var"
-
-    # Fill in first variable
-    select "String", from: "var_type"
-    fill_in "var_value", with: "Hello"
-    click_button "Continue Preview"
-
-    # Should be prompted for second_var
-    assert_text "Missing Variable"
-    assert_text "second_var"
-
-    # Verify first variable is preserved
-    assert_text "Already defined variables"
-    assert_text "first_var"
-
-    # Fill in second variable
-    select "String", from: "var_type"
-    fill_in "var_value", with: "World"
-    click_button "Continue Preview"
-
-    # Should render the template with both variables
+    # Should auto-fill values and render the template directly
     assert_text "Multi Variable Test"
-    assert_text "First: Hello"
-    assert_text "Second: World"
+    assert_text "First:"
+    assert_text "Second:"
+
+    # Edit overlay should be present with the auto-filled variables
+    assert_selector ".auto-preview-fab"
+    assert page.html.include?("first_var")
+    assert page.html.include?("second_var")
   end
 
-  test "integer type variable" do
-    visit "/auto_preview"
-
-    select "pages/greeting.html.erb", from: "template"
-    click_button "Preview"
-
-    select "Integer", from: "var_type"
-    fill_in "var_value", with: "42"
-    click_button "Continue Preview"
+  test "integer type variable via url params" do
+    # Test that integer type works when explicitly provided
+    visit "/auto_preview/show?template=pages/greeting.html.erb&vars[name][type]=Integer&vars[name][value]=42"
 
     assert_text "Hello, 42!"
   end
 
-  test "float type variable" do
-    visit "/auto_preview"
-
-    select "pages/greeting.html.erb", from: "template"
-    click_button "Preview"
-
-    select "Float", from: "var_type"
-    fill_in "var_value", with: "3.14"
-    click_button "Continue Preview"
+  test "float type variable via url params" do
+    visit "/auto_preview/show?template=pages/greeting.html.erb&vars[name][type]=Float&vars[name][value]=3.14"
 
     assert_text "Hello, 3.14!"
   end
 
-  test "boolean type variable" do
-    visit "/auto_preview"
-
-    select "pages/greeting.html.erb", from: "template"
-    click_button "Preview"
-
-    select "Boolean", from: "var_type"
-    fill_in "var_value", with: "true"
-    click_button "Continue Preview"
+  test "boolean type variable via url params" do
+    visit "/auto_preview/show?template=pages/greeting.html.erb&vars[name][type]=Boolean&vars[name][value]=true"
 
     assert_text "Hello, true!"
   end
 
-  test "array type variable" do
-    visit "/auto_preview"
-
-    select "pages/greeting.html.erb", from: "template"
-    click_button "Preview"
-
-    select "Array", from: "var_type"
-    fill_in "var_value", with: '["a", "b"]'
-    click_button "Continue Preview"
+  test "array type variable via url params" do
+    visit "/auto_preview/show?template=pages/greeting.html.erb&vars[name][type]=Array&vars[name][value]=%5B%22a%22%2C%20%22b%22%5D"
 
     assert_text "Hello,"
     assert_text "a"
   end
 
-  test "hash type variable" do
-    visit "/auto_preview"
-
-    select "pages/greeting.html.erb", from: "template"
-    click_button "Preview"
-
-    select "Hash", from: "var_type"
-    fill_in "var_value", with: '{"key": "value"}'
-    click_button "Continue Preview"
+  test "hash type variable via url params" do
+    visit "/auto_preview/show?template=pages/greeting.html.erb&vars[name][type]=Hash&vars[name][value]=%7B%22key%22%3A%20%22value%22%7D"
 
     assert_text "Hello,"
     assert_text "key"
   end
 
-  test "nilclass type variable" do
-    visit "/auto_preview"
-
-    select "pages/greeting.html.erb", from: "template"
-    click_button "Preview"
-
-    select "NilClass", from: "var_type"
-    click_button "Continue Preview"
+  test "nilclass type variable via url params" do
+    visit "/auto_preview/show?template=pages/greeting.html.erb&vars[name][type]=NilClass&vars[name][value]="
 
     assert_text "Hello, !"
   end
@@ -150,7 +93,7 @@ class AutoPreviewSystemTest < SystemTestCase
     assert_text "Home Page"
   end
 
-  test "factory type variable renders user from factory" do
+  test "factory type variable auto-fills and renders user from factory" do
     initial_user_count = User.count
 
     visit "/auto_preview"
@@ -158,17 +101,7 @@ class AutoPreviewSystemTest < SystemTestCase
     select "pages/user_card.html.erb", from: "template"
     click_button "Preview"
 
-    # Should be prompted for user variable
-    assert_text "Missing Variable"
-    assert_text "user"
-
-    # Select Factory type and enter factory name
-    # (rack_test doesn't execute JS, so we fill value directly)
-    select "Factory", from: "var_type"
-    fill_in "var_value", with: "user"
-    click_button "Continue Preview"
-
-    # Should render the template with factory-created user
+    # Should auto-detect user factory and render with factory-created user
     assert_text "John Doe"
     assert_text "john@example.com"
 
@@ -176,18 +109,10 @@ class AutoPreviewSystemTest < SystemTestCase
     assert_equal initial_user_count, User.count
   end
 
-  test "factory type variable with trait" do
+  test "factory type variable with trait via url params" do
     initial_user_count = User.count
 
-    visit "/auto_preview"
-
-    select "pages/user_card.html.erb", from: "template"
-    click_button "Preview"
-
-    # Select Factory type and enter factory name with trait
-    select "Factory", from: "var_type"
-    fill_in "var_value", with: "user:admin"
-    click_button "Continue Preview"
+    visit "/auto_preview/show?template=pages/user_card.html.erb&vars[user][type]=Factory&vars[user][value]=user:admin"
 
     # Should render the template with admin trait values
     assert_text "Admin User"
@@ -198,19 +123,21 @@ class AutoPreviewSystemTest < SystemTestCase
   end
 
   # Predicate helper and overlay tests
-  test "predicate helper method prompts with boolean default" do
+  test "predicate helper auto-fills and renders" do
     visit "/auto_preview"
 
     select "pages/conditional_feature.html.erb", from: "template"
     click_button "Preview"
 
-    # Should prompt for missing variable
-    assert_text "Missing Variable"
+    # Should auto-fill predicate and render the conditional feature page
+    assert_text "Conditional Feature Demo"
 
-    # If it's a predicate, Boolean should be pre-selected
-    if page.has_text?("premium_user?")
-      assert_selector "select#var_type option[selected]", text: "Boolean"
-    end
+    # The content will show either premium or basic depending on the predicate value
+    # (which may be true from auto-fill or false/nil if helper already existed)
+    assert(page.has_text?("Premium User") || page.has_text?("Basic User"))
+
+    # Edit overlay should be present with the auto-filled variables
+    assert_selector ".auto-preview-fab"
   end
 
   test "predicate helper true value shows premium content" do
@@ -233,17 +160,14 @@ class AutoPreviewSystemTest < SystemTestCase
     assert_text "Your name: Bob"
   end
 
-  test "edit overlay is present after rendering" do
+  test "edit overlay is present after auto-fill rendering" do
     visit "/auto_preview"
 
     select "pages/greeting.html.erb", from: "template"
     click_button "Preview"
 
-    fill_in "var_value", with: "World"
-    click_button "Continue Preview"
-
-    # Should render content
-    assert_text "Hello, World!"
+    # Should auto-fill and render content
+    assert_text "Hello,"
 
     # Overlay elements should be present
     assert_selector ".auto-preview-fab"

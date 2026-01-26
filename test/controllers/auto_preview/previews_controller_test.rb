@@ -57,11 +57,13 @@ module AutoPreview
       assert_response :not_found
     end
 
-    def test_show_prompts_for_missing_variable
+    def test_show_auto_fills_missing_variable
       get "/auto_preview/show", params: {template: "pages/greeting.html.erb"}
 
       assert_response :success
-      assert_includes response.body, "Missing Variable"
+      # Should auto-generate a value and render the template
+      assert_includes response.body, "Hello,"
+      # Edit overlay should show the variable for modification
       assert_includes response.body, "name"
       assert_includes response.body, "vars[name][type]"
       assert_includes response.body, "vars[name][value]"
@@ -186,7 +188,8 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Missing Variable"
+      # Should auto-generate values and render successfully
+      assert_includes response.body, "Hello,"
     end
 
     def test_show_handles_invalid_vars_format
@@ -196,7 +199,8 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Missing Variable"
+      # Should auto-generate values and render successfully even with invalid vars format
+      assert_includes response.body, "Hello,"
     end
 
     def test_show_raises_non_name_error_template_errors
@@ -206,14 +210,15 @@ module AutoPreview
       assert_response :internal_server_error
     end
 
-    def test_show_prompts_for_locals_detected_via_scanning
+    def test_show_auto_fills_locals_detected_via_scanning
       # The _user_profile partial is rendered with user_name and user_email in dashboard.html.erb
-      # The scanner should detect these and prompt before trying to render
+      # The scanner should detect these and auto-fill values to render
       get "/auto_preview/show", params: {template: "pages/_user_profile.html.erb"}
 
       assert_response :success
-      assert_includes response.body, "Missing Variable"
-      # Should prompt for one of the detected locals
+      # Should auto-generate values and render successfully
+      assert_includes response.body, "User Profile"
+      # Edit overlay should show the auto-filled variables
       assert(response.body.include?("user_name") || response.body.include?("user_email"))
     end
 
@@ -231,10 +236,9 @@ module AutoPreview
       assert_includes response.body, "john@example.com"
     end
 
-    def test_show_prompts_for_remaining_locals_when_some_already_provided
+    def test_show_auto_fills_remaining_locals_when_some_already_provided
       # Provide only user_name but not user_email
-      # This should trigger prompt_for_local with existing vars (a hash)
-      # covering the THEN branch of `existing.respond_to?(:keys) ? existing : {}`
+      # This should auto-fill user_email and render the template
       get "/auto_preview/show", params: {
         template: "pages/_user_profile.html.erb",
         vars: {
@@ -243,11 +247,12 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Missing Variable"
-      # Should prompt for the missing user_email
-      assert_includes response.body, "user_email"
-      # The existing var should be preserved in the form
+      # Should auto-generate missing value and render successfully
+      assert_includes response.body, "User Profile"
+      # The provided var should be used
       assert_includes response.body, "Jane Doe"
+      # The edit overlay should show both variables
+      assert_includes response.body, "user_email"
     end
 
     def test_show_renders_with_controller_without_helpers
@@ -322,15 +327,19 @@ module AutoPreview
       assert_equal initial_count, User.count
     end
 
-    def test_show_prompts_for_variable_with_factory_option
+    def test_show_auto_fills_variable_with_factory
+      initial_count = User.count
+
       get "/auto_preview/show", params: {template: "pages/user_card.html.erb"}
 
       assert_response :success
-      assert_includes response.body, "Missing Variable"
+      # Should auto-detect user factory and render with factory-created user
+      assert_includes response.body, "John Doe"
+      assert_includes response.body, "john@example.com"
+      # Factory should be rolled back - no new records persisted
+      assert_equal initial_count, User.count
+      # Edit overlay should show Factory type selected
       assert_includes response.body, "Factory"
-      # Should show available factories in dropdown
-      assert_includes response.body, "user"
-      assert_includes response.body, "user:admin"
     end
 
     def test_find_controllers_skips_nonexistent_paths
@@ -345,14 +354,14 @@ module AutoPreview
     end
 
     # Predicate helper method tests
-    def test_show_prompts_for_missing_variable_in_conditional_feature
-      # Template may prompt for either premium_user? or user_name first
-      # depending on render order and helper state
+    def test_show_auto_fills_missing_variables_in_conditional_feature
+      # Template should auto-fill missing variables and render
       get "/auto_preview/show", params: {template: "pages/conditional_feature.html.erb"}
 
       assert_response :success
-      assert_includes response.body, "Missing Variable"
-      # Should prompt for one of the required variables
+      # Should render the conditional feature page
+      assert_includes response.body, "Conditional Feature Demo"
+      # Edit overlay should show the auto-filled variables
       assert(response.body.include?("premium_user?") || response.body.include?("user_name"))
     end
 
@@ -437,12 +446,12 @@ module AutoPreview
     end
 
     def test_show_catches_no_method_error_for_predicate
-      # NoMethodError should be caught when accessing the template
+      # NoMethodError should be caught and variable should be auto-filled
       get "/auto_preview/show", params: {template: "pages/conditional_feature.html.erb"}
 
       assert_response :success
-      # Should prompt for a missing variable (not crash)
-      assert_includes response.body, "Missing Variable"
+      # Should auto-fill values and render successfully (not crash)
+      assert_includes response.body, "Conditional Feature Demo"
     end
   end
 
