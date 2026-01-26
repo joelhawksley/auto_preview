@@ -179,5 +179,26 @@ module AutoPreview
 
       assert_equal "pages/home", result
     end
+
+    def test_handles_unparseable_templates_gracefully
+      # Create a temporary directory with a template that will fail to parse
+      Dir.mktmpdir do |tmpdir|
+        FileUtils.mkdir_p(File.join(tmpdir, "complex"))
+        # Create a template with ERB inside JavaScript that will cause parsing errors
+        template_content = <<~ERB
+          <script>
+            const pattern = /<% invalid javascript <%= more invalid %> %>/g;
+          </script>
+        ERB
+        File.write(File.join(tmpdir, "complex/unparseable.html.erb"), template_content)
+
+        # Scanner should handle the error and not crash
+        scanner = LocalsScanner.new(view_paths: [tmpdir])
+        locals = scanner.locals_for("complex/unparseable.html.erb")
+
+        # Should return empty array since parsing failed
+        assert_equal [], locals
+      end
+    end
   end
 end

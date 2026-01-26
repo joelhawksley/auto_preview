@@ -51,20 +51,12 @@ module AutoPreview
           raise ActiveRecord::Rollback
         end
 
-        overlay_html = render_to_string(
-          template: "auto_preview/previews/edit_overlay",
-          layout: false,
-          locals: {
-            template_path: template_path,
-            controller_context: controller_name,
-            existing_vars: auto_generated_vars,
-            ruby_types: RUBY_TYPES,
-            factories: FactoryHelper.all
-          }
-        )
+        @rendered_content = content
+        @existing_vars = auto_generated_vars
+        @template_source = read_template_source(template_path)
+        @factories = FactoryHelper.all
 
-        content_with_overlay = OverlayInjector.inject(content, overlay_html)
-        render html: content_with_overlay.html_safe, layout: false
+        render template: "auto_preview/previews/show", layout: false
       rescue ActionView::Template::Error => e
         if (e.cause.is_a?(NameError) || e.cause.is_a?(NoMethodError)) && retries < max_retries
           missing_var = VariableExtractor.extract(e.cause)
@@ -178,6 +170,14 @@ module AutoPreview
 
     def valid_template?(template_path)
       find_erb_files.include?(template_path)
+    end
+
+    def read_template_source(template_path)
+      view_paths.each do |view_path|
+        full_path = File.join(view_path, template_path)
+        return File.read(full_path) if File.exist?(full_path)
+      end
+      nil
     end
   end
 end

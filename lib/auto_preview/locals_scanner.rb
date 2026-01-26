@@ -64,9 +64,17 @@ module AutoPreview
     def scan_view_directory(view_dir, locals)
       return unless File.directory?(view_dir)
 
-      scanner = ActionviewPrecompiler::TemplateScanner.new(view_dir)
-      scanner.template_renders.each do |virtual_path, local_keys|
-        locals[virtual_path].merge(local_keys)
+      begin
+        scanner = ActionviewPrecompiler::TemplateScanner.new(view_dir)
+        scanner.template_renders.each do |virtual_path, local_keys|
+          # Skip auto_preview engine templates
+          next if virtual_path.start_with?("auto_preview/")
+
+          locals[virtual_path].merge(local_keys)
+        end
+      rescue ActionviewPrecompiler::PrismASTParser::CompilationError
+        # Skip directories with templates that can't be parsed
+        # (e.g., the auto_preview engine views with complex JS/ERB)
       end
     end
 

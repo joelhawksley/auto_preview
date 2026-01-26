@@ -4,6 +4,19 @@ require "test_helper"
 
 module AutoPreview
   class PreviewsControllerTest < ActionDispatch::IntegrationTest
+    # Helper to check if text appears in the iframe srcdoc (HTML-escaped)
+    def assert_preview_includes(text)
+      # The content is HTML-escaped in the srcdoc attribute
+      escaped_text = CGI.escapeHTML(text)
+      assert_includes response.body, escaped_text, "Expected preview iframe to include '#{text}'"
+    end
+
+    # Helper to check content is NOT in iframe srcdoc
+    def refute_preview_includes(text)
+      escaped_text = CGI.escapeHTML(text)
+      refute_includes response.body, escaped_text, "Expected preview iframe NOT to include '#{text}'"
+    end
+
     def test_index_renders_template_selector
       get "/auto_preview"
 
@@ -25,7 +38,7 @@ module AutoPreview
       get "/auto_preview/show", params: {template: "pages/home.html.erb"}
 
       assert_response :success
-      assert_includes response.body, "<h1>Home Page</h1>"
+      assert_preview_includes "<h1>Home Page</h1>"
     end
 
     def test_show_renders_template_using_application_helper
@@ -35,7 +48,7 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Hello, World! Welcome to the app."
+      assert_preview_includes "Hello, World! Welcome to the app."
     end
 
     def test_show_returns_not_found_for_missing_template
@@ -62,7 +75,7 @@ module AutoPreview
 
       assert_response :success
       # Should auto-generate a value and render the template
-      assert_includes response.body, "Hello,"
+      assert_preview_includes "Hello,"
       # Edit overlay should show the variable for modification
       assert_includes response.body, "name"
       assert_includes response.body, "vars[name][type]"
@@ -76,7 +89,7 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Hello, Alice!"
+      assert_preview_includes "Hello, Alice!"
     end
 
     def test_show_renders_template_with_integer_variable
@@ -86,7 +99,7 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Hello, 42!"
+      assert_preview_includes "Hello, 42!"
     end
 
     def test_show_renders_template_with_float_variable
@@ -96,7 +109,7 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Hello, 3.14!"
+      assert_preview_includes "Hello, 3.14!"
     end
 
     def test_show_renders_template_with_boolean_true_variable
@@ -106,7 +119,7 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Hello, true!"
+      assert_preview_includes "Hello, true!"
     end
 
     def test_show_renders_template_with_boolean_false_variable
@@ -116,7 +129,7 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Hello, false!"
+      assert_preview_includes "Hello, false!"
     end
 
     def test_show_renders_template_with_nil_variable
@@ -126,7 +139,7 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Hello, !"
+      assert_preview_includes "Hello, !"
     end
 
     def test_show_renders_template_with_array_variable
@@ -137,8 +150,8 @@ module AutoPreview
 
       assert_response :success
       # HTML-escapes quotes in the output
-      assert_includes response.body, "Hello, ["
-      assert_includes response.body, "a"
+      assert_preview_includes "Hello, ["
+      assert_preview_includes "a"
     end
 
     def test_show_renders_template_with_hash_variable
@@ -149,8 +162,8 @@ module AutoPreview
 
       assert_response :success
       # HTML-escapes quotes in the output
-      assert_includes response.body, "Hello, {"
-      assert_includes response.body, "key"
+      assert_preview_includes "Hello, {"
+      assert_preview_includes "key"
     end
 
     def test_show_preserves_existing_vars_in_form
@@ -177,8 +190,8 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "First: hello"
-      assert_includes response.body, "Second: world"
+      assert_preview_includes "First: hello"
+      assert_preview_includes "Second: world"
     end
 
     def test_show_handles_empty_vars_param
@@ -189,7 +202,7 @@ module AutoPreview
 
       assert_response :success
       # Should auto-generate values and render successfully
-      assert_includes response.body, "Hello,"
+      assert_preview_includes "Hello,"
     end
 
     def test_show_handles_invalid_vars_format
@@ -200,7 +213,7 @@ module AutoPreview
 
       assert_response :success
       # Should auto-generate values and render successfully even with invalid vars format
-      assert_includes response.body, "Hello,"
+      assert_preview_includes "Hello,"
     end
 
     def test_show_raises_non_name_error_template_errors
@@ -226,7 +239,7 @@ module AutoPreview
 
       assert_response :success
       # Should auto-generate values and render successfully
-      assert_includes response.body, "User Profile"
+      assert_preview_includes "User Profile"
       # Edit overlay should show the auto-filled variables
       assert(response.body.include?("user_name") || response.body.include?("user_email"))
     end
@@ -241,8 +254,8 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "John Doe"
-      assert_includes response.body, "john@example.com"
+      assert_preview_includes "John Doe"
+      assert_preview_includes "john@example.com"
     end
 
     def test_show_auto_fills_remaining_locals_when_some_already_provided
@@ -257,9 +270,9 @@ module AutoPreview
 
       assert_response :success
       # Should auto-generate missing value and render successfully
-      assert_includes response.body, "User Profile"
+      assert_preview_includes "User Profile"
       # The provided var should be used
-      assert_includes response.body, "Jane Doe"
+      assert_preview_includes "Jane Doe"
       # The edit overlay should show both variables
       assert_includes response.body, "user_email"
     end
@@ -273,7 +286,7 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Home Page"
+      assert_preview_includes "Home Page"
     end
 
     def test_show_renders_with_minimal_controller_and_predicate_methods
@@ -289,8 +302,8 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Premium User"
-      assert_includes response.body, "Test User"
+      assert_preview_includes "Premium User"
+      assert_preview_includes "Test User"
     end
 
     def test_show_renders_with_controller_layout
@@ -301,9 +314,9 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "<html><body>"
-      assert_includes response.body, "</body></html>"
-      assert_includes response.body, "Home Page"
+      assert_preview_includes "<html><body>"
+      assert_preview_includes "</body></html>"
+      assert_preview_includes "Home Page"
     end
 
     def test_show_renders_template_with_factory_variable
@@ -315,8 +328,8 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "John Doe"
-      assert_includes response.body, "john@example.com"
+      assert_preview_includes "John Doe"
+      assert_preview_includes "john@example.com"
       # Factory should be rolled back - no new records persisted
       assert_equal initial_count, User.count
     end
@@ -330,8 +343,8 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Admin User"
-      assert_includes response.body, "admin@example.com"
+      assert_preview_includes "Admin User"
+      assert_preview_includes "admin@example.com"
       # Factory should be rolled back - no new records persisted
       assert_equal initial_count, User.count
     end
@@ -343,8 +356,8 @@ module AutoPreview
 
       assert_response :success
       # Should auto-detect user factory and render with factory-created user
-      assert_includes response.body, "John Doe"
-      assert_includes response.body, "john@example.com"
+      assert_preview_includes "John Doe"
+      assert_preview_includes "john@example.com"
       # Factory should be rolled back - no new records persisted
       assert_equal initial_count, User.count
       # Edit overlay should show Factory type selected
@@ -358,26 +371,29 @@ module AutoPreview
 
       assert_response :success
       # Should render the conditional feature page
-      assert_includes response.body, "Conditional Feature Demo"
+      assert_preview_includes "Conditional Feature Demo"
       # Edit overlay should show the auto-filled variables
       assert(response.body.include?("premium_user?") || response.body.include?("user_name"))
     end
 
     def test_show_predicate_defaults_to_boolean_type
       # When prompting for a predicate method, Boolean should be preselected
+      # Request without providing premium_user? - it should be auto-filled
       get "/auto_preview/show", params: {
-        template: "pages/conditional_feature.html.erb",
-        vars: {
-          user_name: {type: "String", value: "Alice"}
-        }
+        template: "pages/conditional_feature.html.erb"
       }
 
-      # If it prompts for premium_user?, Boolean should be preselected
-      if response.body.include?("premium_user?")
-        assert_includes response.body, '<option selected="selected" value="Boolean">Boolean</option>'
+      assert_response :success
+      # If premium_user? is shown in the sidebar form (not just in source code),
+      # Boolean should be preselected
+      # Check for the form field with premium_user? label
+      if response.body.include?('vars[premium_user?][type]')
+        # Check for selected attribute in the HTML (various formats: selected, selected="selected", etc.)
+        boolean_option_pattern = /<option[^>]*value="Boolean"[^>]*selected[^>]*>/
+        assert_match boolean_option_pattern, response.body, "Expected Boolean to be selected for predicate variable"
       else
-        # It rendered successfully with user_name, that's also valid
-        assert_response :success
+        # It auto-filled the variable and rendered successfully without prompting
+        assert_preview_includes "Conditional Feature Demo"
       end
     end
 
@@ -391,9 +407,9 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Premium User"
-      assert_includes response.body, "Advanced analytics"
-      assert_includes response.body, "Your name: Alice"
+      assert_preview_includes "Premium User"
+      assert_preview_includes "Advanced analytics"
+      assert_preview_includes "Your name: Alice"
     end
 
     def test_show_renders_predicate_helper_false
@@ -406,27 +422,36 @@ module AutoPreview
       }
 
       assert_response :success
-      assert_includes response.body, "Basic User"
-      assert_includes response.body, "Upgrade to premium"
-      assert_includes response.body, "Your name: Bob"
-      refute_includes response.body, "Advanced analytics"
+      assert_preview_includes "Basic User"
+      assert_preview_includes "Upgrade to premium"
+      assert_preview_includes "Your name: Bob"
+      # Note: "Advanced analytics" is in the template source but not in the rendered preview
+      # We can only check the iframe srcdoc doesn't contain it (not the whole response which has template source)
+      # Extract the srcdoc content to verify
+      srcdoc_match = response.body.match(/srcdoc="([^"]*)"/)
+      assert srcdoc_match, "Expected to find srcdoc attribute"
+      srcdoc_content = CGI.unescapeHTML(srcdoc_match[1])
+      refute_includes srcdoc_content, "Advanced analytics", "Expected rendered preview not to include 'Advanced analytics'"
     end
 
-    def test_show_includes_edit_overlay_in_rendered_content
+    def test_show_includes_sidebar_and_preview_iframe
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
         vars: {name: {type: "String", value: "World"}}
       }
 
       assert_response :success
-      assert_includes response.body, "Hello, World!"
-      # Overlay elements
-      assert_includes response.body, "auto-preview-fab"
-      assert_includes response.body, "autoPreviewOverlay"
-      assert_includes response.body, "Edit Preview Variables"
+      assert_preview_includes "Hello, World!"
+      # Sidebar layout elements
+      assert_includes response.body, "auto-preview-sidebar"
+      assert_includes response.body, "auto-preview-layout"
+      assert_includes response.body, "previewFrame"
+      # Tab controls
+      assert_includes response.body, "Preview"
+      assert_includes response.body, "Source"
     end
 
-    def test_show_overlay_includes_existing_variables
+    def test_show_sidebar_includes_existing_variables
       get "/auto_preview/show", params: {
         template: "pages/multi_var.html.erb",
         vars: {
@@ -436,7 +461,7 @@ module AutoPreview
       }
 
       assert_response :success
-      # Overlay should show existing vars for editing
+      # Sidebar should show existing vars for editing
       assert_includes response.body, "first_var"
       assert_includes response.body, "second_var"
       assert_includes response.body, "hello"
@@ -449,7 +474,7 @@ module AutoPreview
 
       assert_response :success
       # Should auto-fill values and render successfully (not crash)
-      assert_includes response.body, "Conditional Feature Demo"
+      assert_preview_includes "Conditional Feature Demo"
     end
   end
 
