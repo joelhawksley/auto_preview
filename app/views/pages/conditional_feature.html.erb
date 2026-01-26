@@ -1,0 +1,21 @@
+<h1>Conditional Feature Demo</h1>
+
+<% if premium_user? %>
+  <div class="premium-badge">
+    <span>⭐ Premium User</span>
+  </div>
+  <p>Welcome to the premium experience! You have access to exclusive features.</p>
+  <ul>
+    <li>Advanced analytics</li>
+    <li>Priority support</li>
+    <li>Custom themes</li>
+  </ul>
+<% else %>
+  <div class="basic-badge">
+    <span>Basic User</span>
+  </div>
+  <p>Upgrade to premium for exclusive features!</p>
+  <a href="#" class="upgrade-link">Upgrade Now</a>
+<% end %>
+
+<p>Your name: <%= user_name %></p>
