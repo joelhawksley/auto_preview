@@ -60,13 +60,11 @@ module AutoPreview
 
         render template: "auto_preview/previews/show", layout: false
       rescue ActionView::Template::Error => e
-        if (e.cause.is_a?(NameError) || e.cause.is_a?(NoMethodError)) && retries < max_retries
+        if e.cause.is_a?(NameError) && retries < max_retries
           missing_var = VariableExtractor.extract(e.cause)
-          if missing_var
-            auto_generated_vars = LocalsBuilder.add_auto_generated_value(auto_generated_vars, missing_var)
-            retries += 1
-            retry
-          end
+          auto_generated_vars = LocalsBuilder.add_auto_generated_value(auto_generated_vars, missing_var)
+          retries += 1
+          retry
         end
         raise e
       end
@@ -102,7 +100,6 @@ module AutoPreview
 
       controller_paths.each do |controller_path|
         path = Pathname.new(controller_path)
-        next unless path.exist?
 
         Dir.glob(path.join("**", "*_controller.rb")).each do |file|
           relative = Pathname.new(file).relative_path_from(path).to_s
@@ -155,7 +152,6 @@ module AutoPreview
 
       view_paths.each do |view_path|
         path = Pathname.new(view_path)
-        next unless path.exist?
 
         Dir.glob(path.join("**", "*.html.erb")).each do |file|
           relative = Pathname.new(file).relative_path_from(path).to_s
@@ -175,11 +171,10 @@ module AutoPreview
     end
 
     def read_template_source(template_path)
-      view_paths.each do |view_path|
-        full_path = File.join(view_path, template_path)
-        return File.read(full_path) if File.exist?(full_path)
-      end
-      nil
+      full_path = view_paths
+        .map { |vp| File.join(vp, template_path) }
+        .find { |fp| File.exist?(fp) }
+      File.read(full_path)
     end
   end
 end
