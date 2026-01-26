@@ -210,6 +210,15 @@ module AutoPreview
       assert_response :internal_server_error
     end
 
+    def test_show_raises_name_error_with_unmatched_message_format
+      # This template causes a NameError with a message that doesn't match
+      # the "undefined local variable or method" pattern (e.g., uninitialized constant)
+      get "/auto_preview/show", params: {template: "pages/unmatched_error.html.erb"}
+
+      # Should re-raise the error since we can't extract the variable name
+      assert_response :internal_server_error
+    end
+
     def test_show_auto_fills_locals_detected_via_scanning
       # The _user_profile partial is rendered with user_name and user_email in dashboard.html.erb
       # The scanner should detect these and auto-fill values to render
@@ -550,6 +559,197 @@ module AutoPreview
       assert_nil result
     end
 
+    # infer_type_and_value tests
+    def test_infer_type_and_value_predicate
+      controller = PreviewsController.new
+      type, value = controller.send(:infer_type_and_value, "active?")
+      assert_equal "Boolean", type
+      assert_equal "true", value
+    end
+
+    def test_infer_type_and_value_boolean_prefix_patterns
+      controller = PreviewsController.new
+
+      # Test is_ prefix
+      type, value = controller.send(:infer_type_and_value, "is_active")
+      assert_equal "Boolean", type
+      assert_equal "true", value
+
+      # Test has_ prefix
+      type, value = controller.send(:infer_type_and_value, "has_permission")
+      assert_equal "Boolean", type
+
+      # Test can_ prefix
+      type, value = controller.send(:infer_type_and_value, "can_edit")
+      assert_equal "Boolean", type
+
+      # Test show prefix
+      type, value = controller.send(:infer_type_and_value, "show_details")
+      assert_equal "Boolean", type
+
+      # Test active prefix
+      type, value = controller.send(:infer_type_and_value, "active_subscription")
+      assert_equal "Boolean", type
+    end
+
+    def test_infer_type_and_value_integer_suffix_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "user_id")
+      assert_equal "Integer", type
+      assert_equal "42", value
+
+      type, value = controller.send(:infer_type_and_value, "item_count")
+      assert_equal "Integer", type
+
+      type, value = controller.send(:infer_type_and_value, "age")
+      assert_equal "Integer", type
+
+      type, value = controller.send(:infer_type_and_value, "index")
+      assert_equal "Integer", type
+    end
+
+    def test_infer_type_and_value_float_suffix_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "unit_price")
+      assert_equal "Float", type
+      assert_equal "19.99", value
+
+      type, value = controller.send(:infer_type_and_value, "tax_rate")
+      assert_equal "Float", type
+
+      type, value = controller.send(:infer_type_and_value, "conversion_ratio")
+      assert_equal "Float", type
+    end
+
+    def test_infer_type_and_value_date_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "created_at")
+      assert_equal "String", type
+      # Should be ISO8601 format
+      assert_match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/, value)
+
+      type, value = controller.send(:infer_type_and_value, "published_on")
+      assert_equal "String", type
+
+      type, value = controller.send(:infer_type_and_value, "birth_date")
+      assert_equal "String", type
+    end
+
+    def test_infer_type_and_value_url_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "profile_url")
+      assert_equal "String", type
+      assert_equal "https://example.com", value
+
+      type, value = controller.send(:infer_type_and_value, "website_link")
+      assert_equal "String", type
+    end
+
+    def test_infer_type_and_value_email_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "user_email")
+      assert_equal "String", type
+      assert_equal "user@example.com", value
+    end
+
+    def test_infer_type_and_value_name_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "user_name")
+      assert_equal "String", type
+      assert_includes value, "Example"
+
+      type, value = controller.send(:infer_type_and_value, "page_title")
+      assert_equal "String", type
+    end
+
+    def test_infer_type_and_value_text_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "post_description")
+      assert_equal "String", type
+      assert_includes value, "sample"
+
+      type, value = controller.send(:infer_type_and_value, "article_body")
+      assert_equal "String", type
+
+      type, value = controller.send(:infer_type_and_value, "main_content")
+      assert_equal "String", type
+    end
+
+    def test_infer_type_and_value_array_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "cart_items")
+      assert_equal "Array", type
+      assert_equal "[]", value
+
+      type, value = controller.send(:infer_type_and_value, "tag_list")
+      assert_equal "Array", type
+    end
+
+    def test_infer_type_and_value_hash_patterns
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "user_data")
+      assert_equal "Hash", type
+      assert_equal "{}", value
+
+      type, value = controller.send(:infer_type_and_value, "app_config")
+      assert_equal "Hash", type
+
+      type, value = controller.send(:infer_type_and_value, "query_params")
+      assert_equal "Hash", type
+    end
+
+    def test_infer_type_and_value_user_patterns_with_factory
+      controller = PreviewsController.new
+
+      # With FactoryBot defined and user factory existing
+      type, value = controller.send(:infer_type_and_value, "current_user")
+      assert_equal "Factory", type
+      assert_equal "user", value
+
+      type, value = controller.send(:infer_type_and_value, "admin")
+      assert_equal "Factory", type
+    end
+
+    def test_infer_type_and_value_user_patterns_without_factory
+      controller = PreviewsController.new
+
+      # Temporarily hide FactoryBot constant to test else branch
+      original_factory_bot = Object.send(:remove_const, :FactoryBot)
+      begin
+        type, value = controller.send(:infer_type_and_value, "current_user")
+        assert_equal "String", type
+        assert_equal "John Doe", value
+      ensure
+        Object.const_set(:FactoryBot, original_factory_bot)
+      end
+    end
+
+    def test_infer_type_and_value_default_string
+      controller = PreviewsController.new
+
+      type, value = controller.send(:infer_type_and_value, "random_thing")
+      assert_equal "String", type
+      assert_includes value, "Sample"
+    end
+
+    def test_infer_type_and_value_factory_match
+      controller = PreviewsController.new
+
+      # "user" should match the user factory
+      type, value = controller.send(:infer_type_and_value, "user")
+      assert_equal "Factory", type
+      assert_equal "user", value
+    end
+
     def test_create_from_factory_without_factory_bot_defined
       controller = PreviewsController.new
 
@@ -701,6 +901,102 @@ module AutoPreview
       assert_nothing_raised do
         controller.send(:ensure_predicate_helper_methods, mock_class, {"test?" => true})
       end
+    end
+
+    def test_extract_missing_variable_name_returns_nil_for_non_matching_error
+      controller = PreviewsController.new
+
+      # Create an error with a message that doesn't match the expected patterns
+      error = NameError.new("some completely different error format")
+      result = controller.send(:extract_missing_variable_name, error)
+      assert_nil result
+    end
+
+    def test_coerce_value_string_type
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, 123, "String")
+      assert_equal "123", result
+    end
+
+    def test_coerce_value_integer_type
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, "42", "Integer")
+      assert_equal 42, result
+    end
+
+    def test_coerce_value_float_type
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, "3.14", "Float")
+      assert_in_delta 3.14, result, 0.001
+    end
+
+    def test_coerce_value_boolean_type_true_values
+      controller = PreviewsController.new
+
+      assert_equal true, controller.send(:coerce_value, "true", "Boolean")
+      assert_equal true, controller.send(:coerce_value, "1", "Boolean")
+      assert_equal true, controller.send(:coerce_value, "yes", "Boolean")
+      assert_equal true, controller.send(:coerce_value, "TRUE", "Boolean")
+    end
+
+    def test_coerce_value_boolean_type_false_values
+      controller = PreviewsController.new
+
+      assert_equal false, controller.send(:coerce_value, "false", "Boolean")
+      assert_equal false, controller.send(:coerce_value, "0", "Boolean")
+      assert_equal false, controller.send(:coerce_value, "no", "Boolean")
+    end
+
+    def test_coerce_value_array_type
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, '["a", "b"]', "Array")
+      assert_equal ["a", "b"], result
+    end
+
+    def test_coerce_value_array_type_invalid_json
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, "not json", "Array")
+      assert_equal [], result
+    end
+
+    def test_coerce_value_hash_type
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, '{"key": "value"}', "Hash")
+      assert_equal({"key" => "value"}, result)
+    end
+
+    def test_coerce_value_hash_type_invalid_json
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, "not json", "Hash")
+      assert_equal({}, result)
+    end
+
+    def test_coerce_value_nil_class_type
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, "anything", "NilClass")
+      assert_nil result
+    end
+
+    def test_coerce_value_factory_type
+      controller = PreviewsController.new
+      result = controller.send(:coerce_value, "user", "Factory")
+      assert_instance_of User, result
+    end
+
+    def test_create_from_factory_with_traits
+      controller = PreviewsController.new
+      result = controller.send(:create_from_factory, "user:admin")
+      assert_instance_of User, result
+      assert_equal "Admin User", result.name
+    end
+
+    def test_parse_json_or_default_with_blank_value
+      controller = PreviewsController.new
+      result = controller.send(:parse_json_or_default, "", [1, 2])
+      assert_equal [1, 2], result
+
+      result = controller.send(:parse_json_or_default, nil, {a: 1})
+      assert_equal({a: 1}, result)
     end
   end
 
