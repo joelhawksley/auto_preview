@@ -196,7 +196,7 @@ module AutoPreview
 
       FactoryBot.factories.map do |factory|
         traits = factory.defined_traits.map(&:name)
-        { name: factory.name.to_s, traits: traits }
+        {name: factory.name.to_s, traits: traits}
       end.sort_by { |f| f[:name] }
     end
 
@@ -217,7 +217,7 @@ module AutoPreview
 
         Dir.glob(path.join("**", "*.html.erb")).each do |file|
           relative = Pathname.new(file).relative_path_from(path).to_s
-          files << relative unless relative.start_with?("layouts/") || relative.start_with?("auto_preview/")
+          files << relative unless relative.start_with?("layouts/", "auto_preview/")
         end
       end
 

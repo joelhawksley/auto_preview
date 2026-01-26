@@ -22,7 +22,7 @@ module AutoPreview
     end
 
     def test_show_renders_selected_template
-      get "/auto_preview/show", params: { template: "pages/home.html.erb" }
+      get "/auto_preview/show", params: {template: "pages/home.html.erb"}
 
       assert_response :success
       assert_includes response.body, "<h1>Home Page</h1>"
@@ -31,7 +31,7 @@ module AutoPreview
     def test_show_renders_template_using_application_helper
       get "/auto_preview/show", params: {
         template: "pages/with_helper.html.erb",
-        vars: { name: { type: "String", value: "World" } }
+        vars: {name: {type: "String", value: "World"}}
       }
 
       assert_response :success
@@ -39,14 +39,14 @@ module AutoPreview
     end
 
     def test_show_returns_not_found_for_missing_template
-      get "/auto_preview/show", params: { template: "nonexistent/template" }
+      get "/auto_preview/show", params: {template: "nonexistent/template"}
 
       assert_response :not_found
       assert_includes response.body, "Template not found"
     end
 
     def test_show_returns_not_found_for_blank_template
-      get "/auto_preview/show", params: { template: "" }
+      get "/auto_preview/show", params: {template: ""}
 
       assert_response :not_found
     end
@@ -58,7 +58,7 @@ module AutoPreview
     end
 
     def test_show_prompts_for_missing_variable
-      get "/auto_preview/show", params: { template: "pages/greeting.html.erb" }
+      get "/auto_preview/show", params: {template: "pages/greeting.html.erb"}
 
       assert_response :success
       assert_includes response.body, "Missing Variable"
@@ -70,7 +70,7 @@ module AutoPreview
     def test_show_renders_template_with_string_variable
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
-        vars: { name: { type: "String", value: "Alice" } }
+        vars: {name: {type: "String", value: "Alice"}}
       }
 
       assert_response :success
@@ -80,7 +80,7 @@ module AutoPreview
     def test_show_renders_template_with_integer_variable
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
-        vars: { name: { type: "Integer", value: "42" } }
+        vars: {name: {type: "Integer", value: "42"}}
       }
 
       assert_response :success
@@ -90,7 +90,7 @@ module AutoPreview
     def test_show_renders_template_with_float_variable
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
-        vars: { name: { type: "Float", value: "3.14" } }
+        vars: {name: {type: "Float", value: "3.14"}}
       }
 
       assert_response :success
@@ -100,7 +100,7 @@ module AutoPreview
     def test_show_renders_template_with_boolean_true_variable
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
-        vars: { name: { type: "Boolean", value: "true" } }
+        vars: {name: {type: "Boolean", value: "true"}}
       }
 
       assert_response :success
@@ -110,7 +110,7 @@ module AutoPreview
     def test_show_renders_template_with_boolean_false_variable
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
-        vars: { name: { type: "Boolean", value: "false" } }
+        vars: {name: {type: "Boolean", value: "false"}}
       }
 
       assert_response :success
@@ -120,7 +120,7 @@ module AutoPreview
     def test_show_renders_template_with_nil_variable
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
-        vars: { name: { type: "NilClass", value: "" } }
+        vars: {name: {type: "NilClass", value: ""}}
       }
 
       assert_response :success
@@ -130,7 +130,7 @@ module AutoPreview
     def test_show_renders_template_with_array_variable
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
-        vars: { name: { type: "Array", value: '["a", "b", "c"]' } }
+        vars: {name: {type: "Array", value: '["a", "b", "c"]'}}
       }
 
       assert_response :success
@@ -142,7 +142,7 @@ module AutoPreview
     def test_show_renders_template_with_hash_variable
       get "/auto_preview/show", params: {
         template: "pages/greeting.html.erb",
-        vars: { name: { type: "Hash", value: '{"key": "value"}' } }
+        vars: {name: {type: "Hash", value: '{"key": "value"}'}}
       }
 
       assert_response :success
@@ -155,7 +155,7 @@ module AutoPreview
       # First request triggers the form
       get "/auto_preview/show", params: {
         template: "pages/multi_var.html.erb",
-        vars: { first_var: { type: "String", value: "hello" } }
+        vars: {first_var: {type: "String", value: "hello"}}
       }
 
       assert_response :success
@@ -169,8 +169,8 @@ module AutoPreview
       get "/auto_preview/show", params: {
         template: "pages/multi_var.html.erb",
         vars: {
-          first_var: { type: "String", value: "hello" },
-          second_var: { type: "String", value: "world" }
+          first_var: {type: "String", value: "hello"},
+          second_var: {type: "String", value: "world"}
         }
       }
 
@@ -200,7 +200,7 @@ module AutoPreview
     end
 
     def test_show_raises_non_name_error_template_errors
-      get "/auto_preview/show", params: { template: "pages/error_test.html.erb" }
+      get "/auto_preview/show", params: {template: "pages/error_test.html.erb"}
 
       # Non-NameError template errors should propagate and result in server error
       assert_response :internal_server_error
@@ -209,7 +209,7 @@ module AutoPreview
     def test_show_prompts_for_locals_detected_via_scanning
       # The _user_profile partial is rendered with user_name and user_email in dashboard.html.erb
       # The scanner should detect these and prompt before trying to render
-      get "/auto_preview/show", params: { template: "pages/_user_profile.html.erb" }
+      get "/auto_preview/show", params: {template: "pages/_user_profile.html.erb"}
 
       assert_response :success
       assert_includes response.body, "Missing Variable"
@@ -221,8 +221,8 @@ module AutoPreview
       get "/auto_preview/show", params: {
         template: "pages/_user_profile.html.erb",
         vars: {
-          user_name: { type: "String", value: "John Doe" },
-          user_email: { type: "String", value: "john@example.com" }
+          user_name: {type: "String", value: "John Doe"},
+          user_email: {type: "String", value: "john@example.com"}
         }
       }
 
@@ -238,7 +238,7 @@ module AutoPreview
       get "/auto_preview/show", params: {
         template: "pages/_user_profile.html.erb",
         vars: {
-          user_name: { type: "String", value: "Jane Doe" }
+          user_name: {type: "String", value: "Jane Doe"}
         }
       }
 
@@ -280,7 +280,7 @@ module AutoPreview
 
       get "/auto_preview/show", params: {
         template: "pages/user_card.html.erb",
-        vars: { user: { type: "Factory", value: "user" } }
+        vars: {user: {type: "Factory", value: "user"}}
       }
 
       assert_response :success
@@ -295,7 +295,7 @@ module AutoPreview
 
       get "/auto_preview/show", params: {
         template: "pages/user_card.html.erb",
-        vars: { user: { type: "Factory", value: "user:admin" } }
+        vars: {user: {type: "Factory", value: "user:admin"}}
       }
 
       assert_response :success
@@ -306,7 +306,7 @@ module AutoPreview
     end
 
     def test_show_prompts_for_variable_with_factory_option
-      get "/auto_preview/show", params: { template: "pages/user_card.html.erb" }
+      get "/auto_preview/show", params: {template: "pages/user_card.html.erb"}
 
       assert_response :success
       assert_includes response.body, "Missing Variable"
@@ -378,7 +378,7 @@ module AutoPreview
 
     def test_coerce_value_hash
       controller = PreviewsController.new
-      assert_equal({ "key" => "value" }, controller.send(:coerce_value, '{"key": "value"}', "Hash"))
+      assert_equal({"key" => "value"}, controller.send(:coerce_value, '{"key": "value"}', "Hash"))
       assert_equal({}, controller.send(:coerce_value, "invalid json", "Hash"))
       assert_equal({}, controller.send(:coerce_value, "", "Hash"))
     end
@@ -407,7 +407,7 @@ module AutoPreview
 
     def test_build_locals_skips_invalid_config_format
       controller = PreviewsController.new
-      vars_params = ActionController::Parameters.new({ name: "just a string, not a hash" })
+      vars_params = ActionController::Parameters.new({name: "just a string, not a hash"})
 
       result = controller.send(:build_locals_from_params, vars_params)
       assert_equal({}, result)

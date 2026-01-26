@@ -11,3 +11,5 @@ gem "simplecov", require: false
 gem "capybara"
 gem "factory_bot_rails"
 gem "sqlite3"
+
+gem "standardrb", "~> 1.0"
