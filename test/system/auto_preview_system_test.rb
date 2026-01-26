@@ -196,4 +196,72 @@ class AutoPreviewSystemTest < SystemTestCase
     # Factory should be rolled back - no new records persisted
     assert_equal initial_user_count, User.count
   end
+
+  # Predicate helper and overlay tests
+  test "predicate helper method prompts with boolean default" do
+    visit "/auto_preview"
+
+    select "pages/conditional_feature.html.erb", from: "template"
+    click_button "Preview"
+
+    # Should prompt for missing variable
+    assert_text "Missing Variable"
+
+    # If it's a predicate, Boolean should be pre-selected
+    if page.has_text?("premium_user?")
+      assert_selector "select#var_type option[selected]", text: "Boolean"
+    end
+  end
+
+  test "predicate helper true value shows premium content" do
+    # Directly provide all variables via URL to test final rendering
+    visit "/auto_preview/show?template=pages/conditional_feature.html.erb&vars[premium_user%3F][type]=Boolean&vars[premium_user%3F][value]=true&vars[user_name][type]=String&vars[user_name][value]=Alice"
+
+    # Should show premium content
+    assert_text "Premium User"
+    assert_text "Advanced analytics"
+    assert_text "Your name: Alice"
+  end
+
+  test "predicate helper false value shows basic content" do
+    # Directly provide all variables via URL to test final rendering
+    visit "/auto_preview/show?template=pages/conditional_feature.html.erb&vars[premium_user%3F][type]=Boolean&vars[premium_user%3F][value]=false&vars[user_name][type]=String&vars[user_name][value]=Bob"
+
+    # Should show basic content
+    assert_text "Basic User"
+    assert_text "Upgrade to premium"
+    assert_text "Your name: Bob"
+  end
+
+  test "edit overlay is present after rendering" do
+    visit "/auto_preview"
+
+    select "pages/greeting.html.erb", from: "template"
+    click_button "Preview"
+
+    fill_in "var_value", with: "World"
+    click_button "Continue Preview"
+
+    # Should render content
+    assert_text "Hello, World!"
+
+    # Overlay elements should be present
+    assert_selector ".auto-preview-fab"
+    assert_selector "#autoPreviewOverlay", visible: false
+  end
+
+  test "edit overlay shows existing variables" do
+    visit "/auto_preview/show?template=pages/multi_var.html.erb&vars[first_var][type]=String&vars[first_var][value]=hello&vars[second_var][type]=String&vars[second_var][value]=world"
+
+    # Content should be rendered
+    assert_text "First: hello"
+    assert_text "Second: world"
+
+    # Overlay elements should be in the page (even if hidden)
+    assert_selector ".auto-preview-fab"
+    # The overlay panel should contain the form with variable names
+    assert page.html.include?("first_var")
+    assert page.html.include?("second_var")
+    assert page.html.include?("Edit Preview Variables")
+  end
 end

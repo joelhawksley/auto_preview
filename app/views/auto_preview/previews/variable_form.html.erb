@@ -118,6 +118,9 @@
     </div>
   <% end %>
 
+  <% is_predicate = @missing_variable.to_s.end_with?("?") %>
+  <% default_type = is_predicate ? "Boolean" : "String" %>
+
   <%= form_tag url_for(action: :show), method: :get do %>
     <%= hidden_field_tag :template, @template_path %>
     <%= hidden_field_tag :controller_context, @controller_context %>
@@ -133,18 +136,34 @@
     <div class="form-group">
       <label for="var_type">Type for <code><%= @missing_variable %></code></label>
       <%= select_tag "vars[#{@missing_variable}][type]",
-                     options_for_select(@ruby_types),
+                     options_for_select(@ruby_types, default_type),
                      id: "var_type",
                      onchange: "updateValueHint(this.value)" %>
-      <p class="type-hint" id="type-hint">Enter any text value</p>
+      <p class="type-hint" id="type-hint">
+        <%= is_predicate ? 'Select true or false for this predicate helper' : 'Enter any text value' %>
+      </p>
     </div>
 
-    <div class="form-group" id="value-group">
+    <div class="form-group" id="bool-group" style="<%= is_predicate ? '' : 'display:none;' %>">
+      <label>Boolean value</label>
+      <div style="display:flex; gap:20px; padding:8px 0;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal;">
+          <input type="radio" name="bool_choice" value="true" onchange="setBooleanValue('true')" <%= 'checked' if is_predicate %>>
+          True
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal;">
+          <input type="radio" name="bool_choice" value="false" onchange="setBooleanValue('false')">
+          False
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group" id="value-group" style="<%= is_predicate ? 'display:none;' : '' %>">
       <label for="var_value">Value</label>
       <%= text_area_tag "vars[#{@missing_variable}][value]",
                         nil,
                         id: "var_value",
-                        placeholder: "Enter value..." %>
+                        placeholder: is_predicate ? "true" : "Enter value..." %>
     </div>
 
     <div class="form-group" id="factory-group" style="display: none;">
@@ -165,6 +184,11 @@
   <% end %>
 
   <script>
+    function setBooleanValue(value) {
+      const valueInput = document.getElementById('var_value');
+      valueInput.value = value;
+    }
+
     function updateValueHint(type) {
       const hint = document.getElementById('type-hint');
       const valueInput = document.getElementById('var_value');
@@ -197,7 +221,15 @@
       hint.textContent = hints[type] || 'Enter a value';
       valueInput.placeholder = placeholders[type] || 'Enter value...';
 
-      if (type === 'Factory') {
+      const boolGroup = document.getElementById('bool-group');
+
+      if (type === 'Boolean') {
+        valueGroup.style.display = 'none';
+        factoryGroup.style.display = 'none';
+        boolGroup.style.display = 'block';
+        valueInput.disabled = false;
+      } else if (type === 'Factory') {
+        boolGroup.style.display = 'none';
         valueGroup.style.display = 'none';
         factoryGroup.style.display = 'block';
         // Don't disable - the value still needs to be submitted
@@ -205,11 +237,13 @@
       } else if (type === 'NilClass') {
         valueGroup.style.display = 'block';
         factoryGroup.style.display = 'none';
+        boolGroup.style.display = 'none';
         valueInput.disabled = true;
         valueInput.value = '';
       } else {
         valueGroup.style.display = 'block';
         factoryGroup.style.display = 'none';
+        boolGroup.style.display = 'none';
         valueInput.disabled = false;
       }
     }

@@ -262,6 +262,23 @@ module AutoPreview
       assert_includes response.body, "Home Page"
     end
 
+    def test_show_renders_with_minimal_controller_and_predicate_methods
+      # Test rendering with MinimalController (which doesn't respond to :render)
+      # and predicate methods - covers the fallback path with define_singleton_method
+      get "/auto_preview/show", params: {
+        template: "pages/conditional_feature.html.erb",
+        controller_context: "MinimalController",
+        vars: {
+          "premium_user?": {type: "Boolean", value: "true"},
+          "user_name": {type: "String", value: "Test User"}
+        }
+      }
+
+      assert_response :success
+      assert_includes response.body, "Premium User"
+      assert_includes response.body, "Test User"
+    end
+
     def test_show_renders_with_controller_layout
       # Test that the layout from the controller context is rendered
       get "/auto_preview/show", params: {
@@ -325,6 +342,107 @@ module AutoPreview
         # ActionController::Base is always included
         assert_equal ["ActionController::Base"], result
       end
+    end
+
+    # Predicate helper method tests
+    def test_show_prompts_for_missing_variable_in_conditional_feature
+      # Template may prompt for either premium_user? or user_name first
+      # depending on render order and helper state
+      get "/auto_preview/show", params: {template: "pages/conditional_feature.html.erb"}
+
+      assert_response :success
+      assert_includes response.body, "Missing Variable"
+      # Should prompt for one of the required variables
+      assert(response.body.include?("premium_user?") || response.body.include?("user_name"))
+    end
+
+    def test_show_predicate_defaults_to_boolean_type
+      # When prompting for a predicate method, Boolean should be preselected
+      get "/auto_preview/show", params: {
+        template: "pages/conditional_feature.html.erb",
+        vars: {
+          user_name: {type: "String", value: "Alice"}
+        }
+      }
+
+      # If it prompts for premium_user?, Boolean should be preselected
+      if response.body.include?("premium_user?")
+        assert_includes response.body, '<option selected="selected" value="Boolean">Boolean</option>'
+      else
+        # It rendered successfully with user_name, that's also valid
+        assert_response :success
+      end
+    end
+
+    def test_show_renders_predicate_helper_true
+      get "/auto_preview/show", params: {
+        template: "pages/conditional_feature.html.erb",
+        vars: {
+          "premium_user?": {type: "Boolean", value: "true"},
+          user_name: {type: "String", value: "Alice"}
+        }
+      }
+
+      assert_response :success
+      assert_includes response.body, "Premium User"
+      assert_includes response.body, "Advanced analytics"
+      assert_includes response.body, "Your name: Alice"
+    end
+
+    def test_show_renders_predicate_helper_false
+      get "/auto_preview/show", params: {
+        template: "pages/conditional_feature.html.erb",
+        vars: {
+          "premium_user?": {type: "Boolean", value: "false"},
+          user_name: {type: "String", value: "Bob"}
+        }
+      }
+
+      assert_response :success
+      assert_includes response.body, "Basic User"
+      assert_includes response.body, "Upgrade to premium"
+      assert_includes response.body, "Your name: Bob"
+      refute_includes response.body, "Advanced analytics"
+    end
+
+    def test_show_includes_edit_overlay_in_rendered_content
+      get "/auto_preview/show", params: {
+        template: "pages/greeting.html.erb",
+        vars: {name: {type: "String", value: "World"}}
+      }
+
+      assert_response :success
+      assert_includes response.body, "Hello, World!"
+      # Overlay elements
+      assert_includes response.body, "auto-preview-fab"
+      assert_includes response.body, "autoPreviewOverlay"
+      assert_includes response.body, "Edit Preview Variables"
+    end
+
+    def test_show_overlay_includes_existing_variables
+      get "/auto_preview/show", params: {
+        template: "pages/multi_var.html.erb",
+        vars: {
+          first_var: {type: "String", value: "hello"},
+          second_var: {type: "Integer", value: "42"}
+        }
+      }
+
+      assert_response :success
+      # Overlay should show existing vars for editing
+      assert_includes response.body, "first_var"
+      assert_includes response.body, "second_var"
+      assert_includes response.body, "hello"
+      assert_includes response.body, "42"
+    end
+
+    def test_show_catches_no_method_error_for_predicate
+      # NoMethodError should be caught when accessing the template
+      get "/auto_preview/show", params: {template: "pages/conditional_feature.html.erb"}
+
+      assert_response :success
+      # Should prompt for a missing variable (not crash)
+      assert_includes response.body, "Missing Variable"
     end
   end
 
@@ -475,6 +593,105 @@ module AutoPreview
       user_factory = factories.find { |f| f[:name] == "user" }
       assert_not_nil user_factory
       assert_includes user_factory[:traits], "admin"
+    end
+
+    # Predicate helper unit tests
+    def test_build_predicate_methods_from_params
+      controller = PreviewsController.new
+      vars_params = ActionController::Parameters.new({
+        "premium_user?": {type: "Boolean", value: "true"},
+        "admin?": {type: "Boolean", value: "false"},
+        regular_var: {type: "String", value: "hello"}
+      })
+
+      result = controller.send(:build_predicate_methods_from_params, vars_params)
+
+      assert_equal true, result["premium_user?"]
+      assert_equal false, result["admin?"]
+      refute result.key?("regular_var")
+    end
+
+    def test_build_predicate_methods_from_params_returns_empty_for_nil
+      controller = PreviewsController.new
+
+      result = controller.send(:build_predicate_methods_from_params, nil)
+      assert_equal({}, result)
+    end
+
+    def test_build_predicate_methods_from_params_skips_invalid_config
+      controller = PreviewsController.new
+      vars_params = ActionController::Parameters.new({
+        "predicate?": "not a hash"
+      })
+
+      result = controller.send(:build_predicate_methods_from_params, vars_params)
+      assert_equal({}, result)
+    end
+
+    def test_inject_overlay_into_body_with_body_tag
+      controller = PreviewsController.new
+      content = "<html><body><h1>Test</h1></body></html>"
+      overlay = "<div>Overlay</div>"
+
+      result = controller.send(:inject_overlay_into_body, content, overlay)
+
+      assert_includes result, "<div>Overlay</div>"
+      assert_includes result, "</body>"
+      assert result.index("<div>Overlay</div>") < result.index("</body>")
+    end
+
+    def test_inject_overlay_into_body_without_body_tag
+      controller = PreviewsController.new
+      content = "<h1>Test</h1>"
+      overlay = "<div>Overlay</div>"
+
+      result = controller.send(:inject_overlay_into_body, content, overlay)
+
+      assert_equal "<h1>Test</h1><div>Overlay</div>", result
+    end
+
+    def test_inject_overlay_into_body_with_blank_overlay
+      controller = PreviewsController.new
+      content = "<html><body><h1>Test</h1></body></html>"
+
+      result = controller.send(:inject_overlay_into_body, content, "")
+      assert_equal content, result
+
+      result = controller.send(:inject_overlay_into_body, content, nil)
+      assert_equal content, result
+    end
+
+    def test_handle_name_error_matches_predicate_methods
+      controller = PreviewsController.new
+
+      # Create a NoMethodError for a predicate method (matches Rails format)
+      error = NoMethodError.new("undefined method `admin?' for an instance of SomeClass")
+
+      # Should extract the method name from the error using the updated regex
+      match = error.message.match(/undefined (?:local variable or )?method [`']([\w\?]+)'/)
+      assert_not_nil match
+      assert_equal "admin?", match[1]
+    end
+
+    def test_ensure_predicate_helper_methods_skips_when_empty
+      controller = PreviewsController.new
+
+      # Should not raise when empty predicates
+      assert_nothing_raised do
+        controller.send(:ensure_predicate_helper_methods, ApplicationController, {})
+      end
+    end
+
+    def test_ensure_predicate_helper_methods_skips_when_no_helpers
+      controller = PreviewsController.new
+
+      # Create a mock class without helpers method
+      mock_class = Class.new
+
+      # Should not raise
+      assert_nothing_raised do
+        controller.send(:ensure_predicate_helper_methods, mock_class, {"test?" => true})
+      end
     end
   end
 

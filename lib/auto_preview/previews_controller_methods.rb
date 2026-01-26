@@ -55,12 +55,27 @@ module AutoPreview
       begin
         ActiveRecord::Base.transaction do
           locals = build_locals_from_params(vars_params)
-          content = render_template_content(controller_class, render_path, locals)
+          predicate_methods = build_predicate_methods_from_params(vars_params)
+          content = render_template_content(controller_class, render_path, locals, predicate_methods)
           raise ActiveRecord::Rollback
         end
-        render html: content.html_safe, layout: false
+
+        overlay_html = render_to_string(
+          template: "auto_preview/previews/edit_overlay",
+          layout: false,
+          locals: {
+            template_path: template_path,
+            controller_context: controller_name,
+            existing_vars: vars_params,
+            ruby_types: RUBY_TYPES,
+            factories: find_factories
+          }
+        )
+
+        content_with_overlay = inject_overlay_into_body(content, overlay_html)
+        render html: content_with_overlay.html_safe, layout: false
       rescue ActionView::Template::Error => e
-        if e.cause.is_a?(NameError)
+        if e.cause.is_a?(NameError) || e.cause.is_a?(NoMethodError)
           handle_name_error(e.cause, template_path)
         else
           raise e
@@ -68,19 +83,34 @@ module AutoPreview
       end
     end
 
-    def render_template_content(controller_class, render_path, locals)
+    def render_template_content(controller_class, render_path, locals, predicate_methods)
+      ensure_predicate_helper_methods(controller_class, predicate_methods)
+
       if controller_class.respond_to?(:render)
-        controller_class.render(template: render_path, locals: locals)
+        controller_class.render(
+          template: render_path,
+          locals: locals,
+          assigns: {"_auto_preview_predicates" => predicate_methods}
+        )
       else
         # Fallback for controllers without ActionController::Rendering
         lookup_context = ActionView::LookupContext.new(view_paths)
         view_context = ActionView::Base.with_empty_template_cache.new(lookup_context, locals, self)
+        view_context.instance_variable_set(:@_auto_preview_predicates, predicate_methods)
+
+        predicate_methods.each_key do |method_name|
+          view_context.define_singleton_method(method_name.to_sym) do
+            (@_auto_preview_predicates || {})[method_name]
+          end
+        end
+
         view_context.render(template: render_path, locals: locals)
       end
     end
 
     def handle_name_error(error, template_path)
-      match = error.message.match(/undefined local variable or method [`'](\w+)'/)
+      # Match both NameError and NoMethodError message formats
+      match = error.message.match(/undefined (?:local variable or )?method [`']([\w\?]+)'/)
 
       if match
         prompt_for_local(match[1], template_path, @controller_context)
@@ -143,13 +173,60 @@ module AutoPreview
 
       vars_params.each do |name, config|
         next unless config.is_a?(ActionController::Parameters) || config.is_a?(Hash)
+        # Skip predicate methods - they're handled separately as helper methods
+        next if name.to_s.end_with?("?")
 
-        type = config[:type]
-        value = config[:value]
+        type = config[:type] || config["type"]
+        value = config[:value] || config["value"]
         locals[name.to_sym] = coerce_value(value, type)
       end
 
       locals
+    end
+
+    def build_predicate_methods_from_params(vars_params)
+      predicates = {}
+      return predicates unless vars_params.is_a?(ActionController::Parameters) || vars_params.is_a?(Hash)
+
+      vars_params.each do |name, config|
+        next unless name.to_s.end_with?("?")
+        next unless config.is_a?(ActionController::Parameters) || config.is_a?(Hash)
+
+        type = config[:type] || config["type"] || "Boolean"
+        value = config[:value] || config["value"]
+        predicates[name.to_s] = coerce_value(value, type)
+      end
+
+      predicates
+    end
+
+    def ensure_predicate_helper_methods(controller_class, predicate_methods)
+      return if predicate_methods.empty?
+      return unless controller_class.respond_to?(:_helpers)
+
+      helpers_module = controller_class._helpers
+      helper_module = Module.new
+
+      predicate_methods.each_key do |method_name|
+        method_sym = method_name.to_sym
+        next if helpers_module.instance_methods.include?(method_sym)
+
+        helper_module.define_method(method_sym) do
+          (@_auto_preview_predicates || {})[method_name]
+        end
+      end
+
+      controller_class.helper(helper_module) if helper_module.instance_methods.any?
+    end
+
+    def inject_overlay_into_body(content, overlay_html)
+      return content if overlay_html.blank?
+
+      if content.match?(%r{</body>}i)
+        content.sub(%r{</body>}i, "#{overlay_html}\n</body>")
+      else
+        content + overlay_html
+      end
     end
 
     def coerce_value(value, type)
