@@ -2,6 +2,13 @@
 
 require_relative "auto_preview/version"
 require_relative "auto_preview/engine"
+require_relative "auto_preview/value_coercer"
+require_relative "auto_preview/type_inferrer"
+require_relative "auto_preview/variable_extractor"
+require_relative "auto_preview/factory_helper"
+require_relative "auto_preview/locals_builder"
+require_relative "auto_preview/overlay_injector"
+require_relative "auto_preview/predicate_helper"
 require_relative "auto_preview/locals_scanner"
 require_relative "auto_preview/previews_controller_methods"
 

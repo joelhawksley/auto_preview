@@ -27,6 +27,21 @@ module AutoPreview
       template_locals[virtual_path] || template_locals[partialize(virtual_path)] || []
     end
 
+    def template_path_to_virtual_path(template_path)
+      # Remove all extensions (e.g., ".html.erb" -> "")
+      # The regex matches from the first dot to the end of the path
+      template_path.sub(/\.[^\/]+\z/, "")
+    end
+
+    def partialize(virtual_path)
+      # Convert "pages/greeting" to "pages/_greeting"
+      parts = virtual_path.split("/")
+      return virtual_path if parts.empty?
+
+      parts[-1] = "_#{parts[-1]}" unless parts[-1].start_with?("_")
+      parts.join("/")
+    end
+
     private
 
     def scan_all
@@ -62,21 +77,6 @@ module AutoPreview
       scanner.template_renders.each do |virtual_path, local_keys|
         locals[virtual_path].merge(local_keys)
       end
-    end
-
-    def template_path_to_virtual_path(template_path)
-      # Remove all extensions (e.g., ".html.erb" -> "")
-      # The regex matches from the first dot to the end of the path
-      template_path.sub(/\.[^\/]+\z/, "")
-    end
-
-    def partialize(virtual_path)
-      # Convert "pages/greeting" to "pages/_greeting"
-      parts = virtual_path.split("/")
-      return virtual_path if parts.empty?
-
-      parts[-1] = "_#{parts[-1]}" unless parts[-1].start_with?("_")
-      parts.join("/")
     end
   end
 end
