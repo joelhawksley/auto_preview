@@ -3,7 +3,7 @@ PATH
   specs:
     auto_preview (0.1.0)
       actionview_precompiler (~> 0.4)
-      rails (~> 8)
+      rails
 
 GEM
   remote: https://rubygems.org/
