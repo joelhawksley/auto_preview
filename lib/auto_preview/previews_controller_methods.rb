@@ -44,6 +44,11 @@ module AutoPreview
       max_retries = 20  # Prevent infinite loops
       retries = 0
 
+      # Pre-scan template for predicate methods and add them to auto_generated_vars
+      # This is needed because predicate helper methods may persist across requests
+      template_source = read_template_source(template_path)
+      auto_generated_vars = add_scanned_predicates(template_source, auto_generated_vars)
+
       begin
         ActiveRecord::Base.transaction do
           locals = LocalsBuilder.build_locals(auto_generated_vars)
@@ -56,11 +61,12 @@ module AutoPreview
 
         @rendered_content = content
         @existing_vars = auto_generated_vars
-        @template_source = read_template_source(template_path)
+        @template_source = template_source
         @line_coverage = coverage
         @factories = FactoryHelper.all
         @erb_files = find_erb_files
         @controllers = find_controllers
+        @presets = PresetGenerator.generate(@template_source, @existing_vars)
 
         render template: "auto_preview/previews/show", layout: false
       rescue ActionView::Template::Error => e
@@ -179,6 +185,28 @@ module AutoPreview
         .map { |vp| File.join(vp, template_path) }
         .find { |fp| File.exist?(fp) }
       File.read(full_path)
+    end
+
+    # Scan template for predicate method calls and add them to vars if not already present.
+    # This ensures predicate variables always appear in the sidebar, even if the helper
+    # method was already defined from a previous request.
+    def add_scanned_predicates(template_source, vars)
+      vars = vars.respond_to?(:to_unsafe_h) ? vars.to_unsafe_h.deep_dup : (vars || {}).deep_dup
+
+      # Pattern to find predicate method calls in ERB: method names ending with ?
+      # Uses word boundary before but not after since ? is not a word character
+      predicate_pattern = /\b(\w+\?)/
+
+      template_source.scan(predicate_pattern).flatten.uniq.each do |predicate_name|
+        # Skip if already in vars
+        next if vars.key?(predicate_name) || vars.key?(predicate_name.to_sym)
+
+        # Add the predicate with Boolean type and default value
+        type, value = TypeInferrer.infer(predicate_name)
+        vars[predicate_name] = {"type" => type, "value" => value}
+      end
+
+      vars
     end
   end
 end

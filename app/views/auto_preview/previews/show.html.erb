@@ -158,6 +158,43 @@
       background: #1d4ed8;
     }
 
+    .auto-preview-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .auto-preview-preset-btn {
+      padding: 6px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: #f8fafc;
+      color: #374151;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .auto-preview-preset-btn:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .auto-preview-preset-btn.active {
+      border-color: #3b82f6;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-weight: 500;
+    }
+
+    .auto-preview-preset-hint {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 8px;
+      margin-bottom: 0;
+    }
+
     .auto-preview-empty {
       text-align: center;
       color: #64748b;
@@ -564,6 +601,23 @@
             <% end %>
           </div>
 
+          <% if @presets.present? %>
+            <div class="auto-preview-section">
+              <div class="auto-preview-section-title">Coverage Presets</div>
+              <div class="auto-preview-presets">
+                <% @presets.each_with_index do |preset, index| %>
+                  <button type="button"
+                          class="auto-preview-preset-btn"
+                          onclick="AutoPreview.applyPreset(<%= index %>)"
+                          title="Click to apply this preset">
+                    <%= preset[:name] %>
+                  </button>
+                <% end %>
+              </div>
+              <p class="auto-preview-preset-hint">Apply presets to cover all template branches</p>
+            </div>
+          <% end %>
+
           <button class="auto-preview-submit" type="submit">Update Preview</button>
         <% end %>
       </div>
@@ -592,11 +646,16 @@
   </div>
 
   <script>
+    // Presets data from server
+    window.AutoPreviewPresets = <%= (@presets || []).to_json.html_safe %>;
+
     window.AutoPreview = {
       onTypeChange(paramKey, type) {
         const valueInput = document.getElementById('auto_preview_value_' + paramKey);
         const boolGroup = document.getElementById('auto_preview_bool_' + paramKey);
         const factorySelect = document.getElementById('auto_preview_factory_' + paramKey);
+
+        if (!valueInput || !boolGroup) return;
 
         if (type === 'Boolean') {
           valueInput.style.display = 'none';
@@ -627,6 +686,48 @@
       setFactory(paramKey, value) {
         const valueInput = document.getElementById('auto_preview_value_' + paramKey);
         valueInput.value = value;
+      },
+
+      applyPreset(presetIndex) {
+        const preset = window.AutoPreviewPresets[presetIndex];
+        if (!preset) return;
+
+        // Mark this preset button as active
+        document.querySelectorAll('.auto-preview-preset-btn').forEach((btn, idx) => {
+          btn.classList.toggle('active', idx === presetIndex);
+        });
+
+        // Apply each variable from the preset
+        Object.entries(preset.vars).forEach(([varName, config]) => {
+          // Match Ruby's parameterize: only remove ? and special chars, keep underscores
+          // Ruby: "premium_user?".parameterize => "premium_user"
+          const paramKey = varName.replace(/[^a-zA-Z0-9_]+/g, '').toLowerCase();
+          // Escape special CSS selector characters in variable name
+          const escapedVarName = CSS.escape(varName);
+          const typeSelect = document.querySelector(`select[name="vars[${escapedVarName}][type]"]`);
+          const valueInput = document.getElementById('auto_preview_value_' + paramKey);
+          const boolGroup = document.getElementById('auto_preview_bool_' + paramKey);
+
+          if (typeSelect) {
+            typeSelect.value = config.type;
+            this.onTypeChange(paramKey, config.type);
+          }
+
+          if (valueInput) {
+            valueInput.value = config.value;
+          }
+
+          // Update boolean radio buttons if it's a boolean type
+          if (config.type === 'Boolean' && boolGroup) {
+            const radioTrue = boolGroup.querySelector('input[value="true"]');
+            const radioFalse = boolGroup.querySelector('input[value="false"]');
+            if (radioTrue) radioTrue.checked = config.value === 'true';
+            if (radioFalse) radioFalse.checked = config.value === 'false';
+          }
+        });
+
+        // Submit the form
+        document.getElementById('autoPreviewForm').submit();
       },
 
       highlightERB(source) {

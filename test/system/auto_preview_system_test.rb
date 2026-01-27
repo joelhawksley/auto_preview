@@ -212,4 +212,32 @@ class AutoPreviewSystemTest < SystemTestCase
     assert page.html.include?("second_var")
     assert page.html.include?("Variables")
   end
+
+  test "preset buttons appear for templates with conditionals" do
+    visit "/auto_preview/show?template=pages/conditional_feature.html.erb&vars[premium_user%3F][type]=Boolean&vars[premium_user%3F][value]=true&vars[user_name][type]=String&vars[user_name][value]=Test"
+
+    # Should show presets section (text-transform: uppercase makes it "COVERAGE PRESETS")
+    assert_selector ".auto-preview-section-title", text: "COVERAGE PRESETS"
+    assert_selector ".auto-preview-preset-btn"
+  end
+
+  test "clicking preset button updates preview" do
+    # Start with premium_user? = true
+    visit "/auto_preview/show?template=pages/conditional_feature.html.erb&vars[premium_user%3F][type]=Boolean&vars[premium_user%3F][value]=true&vars[user_name][type]=String&vars[user_name][value]=Test"
+
+    # Should initially show premium content
+    assert_preview_text "Premium User"
+
+    # Find and click the "disabled" preset to switch to false
+    preset_buttons = all(".auto-preview-preset-btn")
+    disabled_preset = preset_buttons.find { |btn| btn.text.include?("disabled") }
+    assert disabled_preset, "Expected to find a 'disabled' preset button"
+
+    # Click the preset button - this submits the form
+    disabled_preset.click
+
+    # Wait for page reload and assert new content
+    sleep 1
+    assert_preview_text "Basic User"
+  end
 end
