@@ -9,6 +9,7 @@ require_relative "auto_preview/factory_helper"
 require_relative "auto_preview/locals_builder"
 require_relative "auto_preview/predicate_helper"
 require_relative "auto_preview/locals_scanner"
+require_relative "auto_preview/coverage_tracker"
 require_relative "auto_preview/previews_controller_methods"
 
 module AutoPreview

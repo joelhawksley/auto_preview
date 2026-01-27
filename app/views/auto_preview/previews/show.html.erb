@@ -234,7 +234,7 @@
     .auto-preview-source {
       height: 100%;
       overflow: auto;
-      padding: 16px;
+      padding: 0;
       background: #1e293b;
     }
 
@@ -250,7 +250,60 @@
 
     .auto-preview-source code {
       font-family: inherit;
+      display: block;
     }
+
+    .source-line {
+      display: block;
+      padding: 0 16px;
+      min-height: 1.6em;
+    }
+
+    .source-line.covered {
+      background: rgba(34, 197, 94, 0.15);
+      border-left: 3px solid #22c55e;
+      padding-left: 13px;
+    }
+
+    .source-line.uncovered {
+      background: rgba(239, 68, 68, 0.25);
+      border-left: 3px solid #ef4444;
+      padding-left: 13px;
+    }
+
+    .source-line-number {
+      display: inline-block;
+      width: 3em;
+      margin-right: 1em;
+      color: #64748b;
+      text-align: right;
+      user-select: none;
+    }
+
+    .coverage-summary {
+      padding: 8px 16px;
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+      font-size: 12px;
+      color: #94a3b8;
+      display: flex;
+      gap: 16px;
+    }
+
+    .coverage-stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .coverage-stat .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .coverage-stat .dot.covered { background: #22c55e; }
+    .coverage-stat .dot.uncovered { background: #ef4444; }
 
     /* ERB Syntax Highlighting */
     .erb-tag { color: #fbbf24; }
@@ -528,6 +581,7 @@
         <div class="auto-preview-panel">
           <div class="auto-preview-panel-header">Source</div>
           <div class="auto-preview-panel-body">
+            <div class="coverage-summary" id="coverageSummary"></div>
             <div class="auto-preview-source">
               <pre><code id="sourceCode"></code></pre>
             </div>
@@ -764,6 +818,67 @@
             }
           });
         });
+      },
+
+      // Highlight source code with coverage information
+      highlightWithCoverage(source, coverage) {
+        const lines = source.split('\n');
+        let coveredCount = 0;
+        let uncoveredCount = 0;
+        let totalExecutable = 0;
+
+        const highlightedLines = lines.map((line, index) => {
+          const lineNum = index + 1;
+          const lineContent = this.highlightERB(line);
+          const lineNumSpan = `<span class="source-line-number">${lineNum}</span>`;
+
+          // Check coverage status
+          const coverageStatus = coverage[lineNum];
+          let cssClass = 'source-line';
+
+          if (coverageStatus === true) {
+            cssClass += ' covered';
+            coveredCount++;
+            totalExecutable++;
+          } else if (coverageStatus === false) {
+            cssClass += ' uncovered';
+            uncoveredCount++;
+            totalExecutable++;
+          }
+          // If coverageStatus is undefined, line is not executable (no highlight)
+
+          return `<span class="${cssClass}">${lineNumSpan}${lineContent || ' '}</span>`;
+        });
+
+        return {
+          html: highlightedLines.join('\n'),
+          covered: coveredCount,
+          uncovered: uncoveredCount,
+          total: totalExecutable
+        };
+      },
+
+      updateCoverageSummary(covered, uncovered, total) {
+        const summaryEl = document.getElementById('coverageSummary');
+        if (total === 0) {
+          summaryEl.innerHTML = '<span style="color: #64748b;">No coverage data available</span>';
+          return;
+        }
+
+        const percentage = total > 0 ? Math.round((covered / total) * 100) : 0;
+        summaryEl.innerHTML = `
+          <span class="coverage-stat">
+            <span class="dot covered"></span>
+            <span>${covered} covered</span>
+          </span>
+          <span class="coverage-stat">
+            <span class="dot uncovered"></span>
+            <span>${uncovered} uncovered</span>
+          </span>
+          <span style="margin-left: auto; font-weight: 500;">
+            ${percentage}% coverage
+          </span>
+        `;
       }
     };
 
@@ -771,7 +886,11 @@
     document.addEventListener('DOMContentLoaded', function() {
       const sourceCode = document.getElementById('sourceCode');
       const rawSource = <%= (@template_source || "").to_json.html_safe %>;
-      sourceCode.innerHTML = AutoPreview.highlightERB(rawSource);
+      const coverage = <%= (@line_coverage || {}).to_json.html_safe %>;
+
+      const result = AutoPreview.highlightWithCoverage(rawSource, coverage);
+      sourceCode.innerHTML = result.html;
+      AutoPreview.updateCoverageSummary(result.covered, result.uncovered, result.total);
 
       // Initialize filtered dropdowns
       AutoPreview.initFilteredDropdowns();

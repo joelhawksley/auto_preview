@@ -39,6 +39,7 @@ module AutoPreview
       render_path = template_path.sub(/\.html\.erb$/, "")
 
       content = nil
+      coverage = {}
       auto_generated_vars = vars_params || {}
       max_retries = 20  # Prevent infinite loops
       retries = 0
@@ -47,13 +48,16 @@ module AutoPreview
         ActiveRecord::Base.transaction do
           locals = LocalsBuilder.build_locals(auto_generated_vars)
           predicate_methods = LocalsBuilder.build_predicates(auto_generated_vars)
-          content = render_template_content(controller_class, render_path, locals, predicate_methods)
+          coverage, content = CoverageTracker.track(template_path, view_paths) do
+            render_template_content(controller_class, render_path, locals, predicate_methods)
+          end
           raise ActiveRecord::Rollback
         end
 
         @rendered_content = content
         @existing_vars = auto_generated_vars
         @template_source = read_template_source(template_path)
+        @line_coverage = coverage
         @factories = FactoryHelper.all
         @erb_files = find_erb_files
         @controllers = find_controllers
