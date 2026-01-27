@@ -141,7 +141,8 @@ module AutoPreview
     end
 
     def locals_scanner
-      @locals_scanner ||= LocalsScanner.new(
+      # Don't memoize - paths may change between requests in development
+      LocalsScanner.new(
         view_paths: view_paths,
         controller_paths: controller_paths
       )
