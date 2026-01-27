@@ -22,6 +22,8 @@ require "factory_bot_rails"
 class DummyApp < Rails::Application
   config.eager_load = false
   config.hosts << "www.example.com"
+  config.hosts << "127.0.0.1"
+  config.hosts << "localhost"
   config.secret_key_base = "test_secret_key_base_for_auto_preview_gem"
   config.active_record.maintain_test_schema = false
 end
@@ -54,6 +56,26 @@ end
 require "minitest/autorun"
 require "rails/test_help"
 require "capybara/minitest"
+require "selenium-webdriver"
+
+# Register headless Chrome driver
+Capybara.register_driver :headless_chrome do |app|
+  options = Selenium::WebDriver::Chrome::Options.new
+  options.add_argument("--headless=new")
+  options.add_argument("--disable-gpu")
+  options.add_argument("--no-sandbox")
+  options.add_argument("--disable-dev-shm-usage")
+  options.add_argument("--window-size=1400,1000")
+
+  Capybara::Selenium::Driver.new(app, browser: :chrome, options: options)
+end
+
+# Configure Capybara defaults
+Capybara.default_driver = :headless_chrome
+Capybara.javascript_driver = :headless_chrome
+Capybara.server = :puma, {Silent: true}
+Capybara.default_max_wait_time = 5
+Capybara.server_host = "127.0.0.1"
 
 class SystemTestCase < ActionDispatch::IntegrationTest
   include Capybara::DSL

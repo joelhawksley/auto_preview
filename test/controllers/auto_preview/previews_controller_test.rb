@@ -22,7 +22,7 @@ module AutoPreview
 
       assert_response :success
       assert_includes response.body, "<h1>AutoPreview</h1>"
-      assert_includes response.body, "<select"
+      assert_includes response.body, "auto-preview-filtered-dropdown"
       assert_includes response.body, "pages/home.html.erb"
       assert_includes response.body, "pages/about.html.erb"
     end

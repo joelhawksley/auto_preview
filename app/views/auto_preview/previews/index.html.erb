@@ -3,13 +3,184 @@
 <head>
   <title>AutoPreview</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-    h1 { color: #333; }
-    form { margin-top: 20px; }
-    label { display: block; margin-bottom: 5px; font-weight: 600; }
-    select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 15px; }
-    button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
-    .form-group { margin-bottom: 15px; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f1f5f9;
+    }
+    h1 { color: #0f172a; margin-bottom: 8px; }
+    p { color: #64748b; margin-bottom: 24px; }
+    form {
+      background: #fff;
+      padding: 24px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .form-group { margin-bottom: 20px; }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #374151;
+    }
+    .hint {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+    button[type="submit"] {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button[type="submit"]:hover {
+      background: #1d4ed8;
+    }
+
+    /* Filtered Dropdown Styles */
+    .auto-preview-filtered-dropdown {
+      position: relative;
+      width: 100%;
+    }
+
+    .auto-preview-dropdown-trigger {
+      width: 100%;
+      padding: 10px 12px;
+      padding-right: 32px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      position: relative;
+    }
+
+    .auto-preview-dropdown-trigger:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .auto-preview-dropdown-trigger::after {
+      content: '';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid #64748b;
+      pointer-events: none;
+    }
+
+    .auto-preview-dropdown-trigger.open::after {
+      border-top: none;
+      border-bottom: 5px solid #64748b;
+    }
+
+    .auto-preview-dropdown-trigger.placeholder {
+      color: #9ca3af;
+    }
+
+    .auto-preview-dropdown-panel {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      z-index: 1000;
+      display: none;
+      max-height: 320px;
+      overflow: hidden;
+      flex-direction: column;
+    }
+
+    .auto-preview-dropdown-panel.open {
+      display: flex;
+    }
+
+    .auto-preview-dropdown-search {
+      padding: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    .auto-preview-dropdown-search input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 13px;
+      background: #f8fafc;
+      box-sizing: border-box;
+    }
+
+    .auto-preview-dropdown-search input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      background: #fff;
+    }
+
+    .auto-preview-dropdown-list {
+      overflow-y: auto;
+      max-height: 260px;
+      flex: 1;
+    }
+
+    .auto-preview-dropdown-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .auto-preview-dropdown-item:hover,
+    .auto-preview-dropdown-item.highlighted {
+      background: #eff6ff;
+    }
+
+    .auto-preview-dropdown-item.selected {
+      background: #dbeafe;
+      font-weight: 500;
+    }
+
+    .auto-preview-dropdown-empty {
+      padding: 12px;
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .auto-preview-dropdown-count {
+      padding: 6px 12px;
+      font-size: 11px;
+      color: #64748b;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -17,24 +188,201 @@
   <p>Select an ERB template to preview:</p>
 
   <% if @erb_files.any? %>
-    <%= form_tag url_for(action: :show), method: :get do %>
+    <%= form_tag url_for(action: :show), method: :get, id: "autoPreviewForm" do %>
       <div class="form-group">
         <label for="template">Template</label>
-        <%= select_tag :template, options_for_select(@erb_files), prompt: "Select a template...", id: "template" %>
+        <div class="auto-preview-filtered-dropdown" data-dropdown="template">
+          <input type="hidden" name="template" id="template" value="">
+          <button type="button" class="auto-preview-dropdown-trigger placeholder">
+            Select a template...
+          </button>
+          <div class="auto-preview-dropdown-panel">
+            <div class="auto-preview-dropdown-search">
+              <input type="text" placeholder="Search templates..." autocomplete="off">
+            </div>
+            <div class="auto-preview-dropdown-list">
+              <% @erb_files.each do |file| %>
+                <div class="auto-preview-dropdown-item" data-value="<%= file %>" title="<%= file %>"><%= file %></div>
+              <% end %>
+            </div>
+            <div class="auto-preview-dropdown-count"><%= @erb_files.size %> templates</div>
+          </div>
+        </div>
       </div>
 
       <div class="form-group">
         <label for="controller_context">Controller Context</label>
-        <%= select_tag :controller_context, options_for_select(@controllers, AutoPreview.parent_controller), id: "controller_context" %>
-        <p style="font-size: 0.85em; color: #666; margin-top: 5px;">
-          The template will be rendered with the selected controller's helpers available.
-        </p>
+        <div class="auto-preview-filtered-dropdown" data-dropdown="controller_context">
+          <input type="hidden" name="controller_context" id="controller_context" value="<%= AutoPreview.parent_controller %>">
+          <button type="button" class="auto-preview-dropdown-trigger" title="<%= AutoPreview.parent_controller %>">
+            <%= AutoPreview.parent_controller %>
+          </button>
+          <div class="auto-preview-dropdown-panel">
+            <div class="auto-preview-dropdown-search">
+              <input type="text" placeholder="Search controllers..." autocomplete="off">
+            </div>
+            <div class="auto-preview-dropdown-list">
+              <% @controllers.each do |controller| %>
+                <div class="auto-preview-dropdown-item<%= ' selected' if controller == AutoPreview.parent_controller %>" data-value="<%= controller %>" title="<%= controller %>"><%= controller %></div>
+              <% end %>
+            </div>
+            <div class="auto-preview-dropdown-count"><%= @controllers.size %> controllers</div>
+          </div>
+        </div>
+        <p class="hint">The template will be rendered with the selected controller's helpers available.</p>
       </div>
 
-      <%= submit_tag "Preview", data: { disable_with: "Loading..." } %>
+      <button type="submit">Preview</button>
     <% end %>
   <% else %>
     <p><em>No ERB templates found in app/views.</em></p>
   <% end %>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.auto-preview-filtered-dropdown').forEach(dropdown => {
+        const trigger = dropdown.querySelector('.auto-preview-dropdown-trigger');
+        const panel = dropdown.querySelector('.auto-preview-dropdown-panel');
+        const searchInput = dropdown.querySelector('.auto-preview-dropdown-search input');
+        const list = dropdown.querySelector('.auto-preview-dropdown-list');
+        const hiddenInput = dropdown.querySelector('input[type="hidden"]');
+        const countEl = dropdown.querySelector('.auto-preview-dropdown-count');
+        const allItems = Array.from(list.querySelectorAll('.auto-preview-dropdown-item'));
+        const totalCount = allItems.length;
+        let highlightedIndex = -1;
+
+        const updateCount = (visibleCount) => {
+          const label = dropdown.dataset.dropdown === 'template' ? 'templates' : 'controllers';
+          if (visibleCount === totalCount) {
+            countEl.textContent = `${totalCount} ${label}`;
+          } else {
+            countEl.textContent = `${visibleCount} of ${totalCount} ${label}`;
+          }
+        };
+
+        const getVisibleItems = () => allItems.filter(item => item.style.display !== 'none');
+
+        const clearHighlight = () => {
+          allItems.forEach(item => item.classList.remove('highlighted'));
+          highlightedIndex = -1;
+        };
+
+        const highlightItem = (index) => {
+          const visibleItems = getVisibleItems();
+          clearHighlight();
+          if (index >= 0 && index < visibleItems.length) {
+            highlightedIndex = index;
+            visibleItems[index].classList.add('highlighted');
+            visibleItems[index].scrollIntoView({ block: 'nearest' });
+          }
+        };
+
+        const selectItem = (item) => {
+          const value = item.dataset.value;
+          hiddenInput.value = value;
+          trigger.textContent = value;
+          trigger.title = value;
+          trigger.classList.remove('placeholder');
+          allItems.forEach(i => i.classList.remove('selected'));
+          item.classList.add('selected');
+          closeDropdown();
+        };
+
+        const openDropdown = () => {
+          document.querySelectorAll('.auto-preview-dropdown-panel.open').forEach(p => {
+            if (p !== panel) {
+              p.classList.remove('open');
+              p.closest('.auto-preview-filtered-dropdown').querySelector('.auto-preview-dropdown-trigger').classList.remove('open');
+            }
+          });
+          panel.classList.add('open');
+          trigger.classList.add('open');
+          searchInput.value = '';
+          filterItems('');
+          searchInput.focus();
+          highlightedIndex = -1;
+        };
+
+        const closeDropdown = () => {
+          panel.classList.remove('open');
+          trigger.classList.remove('open');
+          clearHighlight();
+        };
+
+        const filterItems = (query) => {
+          const lowerQuery = query.toLowerCase();
+          let visibleCount = 0;
+          allItems.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const matches = !query || text.includes(lowerQuery);
+            item.style.display = matches ? '' : 'none';
+            if (matches) visibleCount++;
+          });
+          updateCount(visibleCount);
+          clearHighlight();
+
+          let emptyMsg = list.querySelector('.auto-preview-dropdown-empty');
+          if (visibleCount === 0) {
+            if (!emptyMsg) {
+              emptyMsg = document.createElement('div');
+              emptyMsg.className = 'auto-preview-dropdown-empty';
+              emptyMsg.textContent = 'No matches found';
+              list.appendChild(emptyMsg);
+            }
+            emptyMsg.style.display = '';
+          } else if (emptyMsg) {
+            emptyMsg.style.display = 'none';
+          }
+        };
+
+        trigger.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (panel.classList.contains('open')) {
+            closeDropdown();
+          } else {
+            openDropdown();
+          }
+        });
+
+        searchInput.addEventListener('input', (e) => {
+          filterItems(e.target.value);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+          const visibleItems = getVisibleItems();
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            highlightItem(Math.min(highlightedIndex + 1, visibleItems.length - 1));
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            highlightItem(Math.max(highlightedIndex - 1, 0));
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (highlightedIndex >= 0 && visibleItems[highlightedIndex]) {
+              selectItem(visibleItems[highlightedIndex]);
+            }
+          } else if (e.key === 'Escape') {
+            closeDropdown();
+            trigger.focus();
+          }
+        });
+
+        allItems.forEach(item => {
+          item.addEventListener('click', () => selectItem(item));
+          item.addEventListener('mouseenter', () => {
+            clearHighlight();
+            item.classList.add('highlighted');
+            highlightedIndex = getVisibleItems().indexOf(item);
+          });
+        });
+
+        document.addEventListener('click', (e) => {
+          if (!dropdown.contains(e.target)) {
+            closeDropdown();
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>

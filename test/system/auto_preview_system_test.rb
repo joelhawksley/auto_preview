@@ -17,12 +17,19 @@ class AutoPreviewSystemTest < SystemTestCase
     srcdoc.include?(text)
   end
 
+  # Helper to select an item from our custom filtered dropdown
+  def select_from_dropdown(dropdown_name, value)
+    dropdown = find(".auto-preview-filtered-dropdown[data-dropdown='#{dropdown_name}']")
+    dropdown.find(".auto-preview-dropdown-trigger").click
+    dropdown.find(".auto-preview-dropdown-item[data-value='#{value}']").click
+  end
+
   test "multi variable template auto-fills and renders" do
     # Visit the index page
     visit "/auto_preview"
 
     # Select the multi_var template
-    select "pages/multi_var.html.erb", from: "template"
+    select_from_dropdown "template", "pages/multi_var.html.erb"
     click_button "Preview"
 
     # Should auto-fill values and render the template directly
@@ -78,7 +85,7 @@ class AutoPreviewSystemTest < SystemTestCase
   test "template without variables renders directly" do
     visit "/auto_preview"
 
-    select "pages/home.html.erb", from: "template"
+    select_from_dropdown "template", "pages/home.html.erb"
     click_button "Preview"
 
     assert_preview_text "Home Page"
@@ -88,19 +95,22 @@ class AutoPreviewSystemTest < SystemTestCase
     visit "/auto_preview"
 
     # Verify the controller dropdown exists and contains expected controllers
-    assert_selector "select#controller_context"
+    assert_selector ".auto-preview-filtered-dropdown[data-dropdown='controller_context']"
+
+    # Open the dropdown to make items visible
+    find(".auto-preview-filtered-dropdown[data-dropdown='controller_context'] .auto-preview-dropdown-trigger").click
 
     # Check that discovered controllers are in the dropdown
-    assert_selector "select#controller_context option", text: "MinimalController"
-    assert_selector "select#controller_context option", text: "PagesController"
+    assert_selector ".auto-preview-dropdown-item[data-value='MinimalController']"
+    assert_selector ".auto-preview-dropdown-item[data-value='PagesController']"
   end
 
   test "rendering with different controller context" do
     visit "/auto_preview"
 
     # Select a template and MinimalController context
-    select "pages/home.html.erb", from: "template"
-    select "MinimalController", from: "controller_context"
+    select_from_dropdown "template", "pages/home.html.erb"
+    select_from_dropdown "controller_context", "MinimalController"
     click_button "Preview"
 
     # Should still render successfully even without helpers
@@ -112,7 +122,7 @@ class AutoPreviewSystemTest < SystemTestCase
 
     visit "/auto_preview"
 
-    select "pages/user_card.html.erb", from: "template"
+    select_from_dropdown "template", "pages/user_card.html.erb"
     click_button "Preview"
 
     # Should auto-detect user factory and render with factory-created user
@@ -140,7 +150,7 @@ class AutoPreviewSystemTest < SystemTestCase
   test "predicate helper auto-fills and renders" do
     visit "/auto_preview"
 
-    select "pages/conditional_feature.html.erb", from: "template"
+    select_from_dropdown "template", "pages/conditional_feature.html.erb"
     click_button "Preview"
 
     # Should auto-fill predicate and render the conditional feature page
@@ -177,7 +187,7 @@ class AutoPreviewSystemTest < SystemTestCase
   test "sidebar is present after auto-fill rendering" do
     visit "/auto_preview"
 
-    select "pages/greeting.html.erb", from: "template"
+    select_from_dropdown "template", "pages/greeting.html.erb"
     click_button "Preview"
 
     # Should auto-fill and render content

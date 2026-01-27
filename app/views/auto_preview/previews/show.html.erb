@@ -260,6 +260,136 @@
     .html-attr { color: #c4b5fd; }
     .html-string { color: #fca5a5; }
     .html-comment { color: #6b7280; font-style: italic; }
+
+    /* Filtered Dropdown Styles */
+    .auto-preview-filtered-dropdown {
+      position: relative;
+      width: 100%;
+    }
+
+    .auto-preview-dropdown-trigger {
+      width: 100%;
+      padding: 8px 10px;
+      padding-right: 28px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      position: relative;
+    }
+
+    .auto-preview-dropdown-trigger:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .auto-preview-dropdown-trigger::after {
+      content: '';
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid #64748b;
+      pointer-events: none;
+    }
+
+    .auto-preview-dropdown-trigger.open::after {
+      border-top: none;
+      border-bottom: 5px solid #64748b;
+    }
+
+    .auto-preview-dropdown-panel {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      z-index: 1000;
+      display: none;
+      max-height: 320px;
+      overflow: hidden;
+      flex-direction: column;
+    }
+
+    .auto-preview-dropdown-panel.open {
+      display: flex;
+    }
+
+    .auto-preview-dropdown-search {
+      padding: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    .auto-preview-dropdown-search input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 13px;
+      background: #f8fafc;
+    }
+
+    .auto-preview-dropdown-search input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      background: #fff;
+    }
+
+    .auto-preview-dropdown-list {
+      overflow-y: auto;
+      max-height: 260px;
+      flex: 1;
+    }
+
+    .auto-preview-dropdown-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .auto-preview-dropdown-item:hover,
+    .auto-preview-dropdown-item.highlighted {
+      background: #eff6ff;
+    }
+
+    .auto-preview-dropdown-item.selected {
+      background: #dbeafe;
+      font-weight: 500;
+    }
+
+    .auto-preview-dropdown-empty {
+      padding: 12px;
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .auto-preview-dropdown-count {
+      padding: 6px 12px;
+      font-size: 11px;
+      color: #64748b;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -273,20 +403,44 @@
         <%= form_tag url_for(action: :show), method: :get, id: "autoPreviewForm" do %>
           <div class="auto-preview-section">
             <div class="auto-preview-section-title">Template</div>
-            <select class="auto-preview-type-select" name="template" onchange="this.form.submit()">
-              <% @erb_files.each do |file| %>
-                <option value="<%= file %>" <%= 'selected' if file == @template_path %>><%= file %></option>
-              <% end %>
-            </select>
+            <div class="auto-preview-filtered-dropdown" data-dropdown="template">
+              <input type="hidden" name="template" value="<%= @template_path %>">
+              <button type="button" class="auto-preview-dropdown-trigger" title="<%= @template_path %>">
+                <%= @template_path || "Select template..." %>
+              </button>
+              <div class="auto-preview-dropdown-panel">
+                <div class="auto-preview-dropdown-search">
+                  <input type="text" placeholder="Search templates..." autocomplete="off">
+                </div>
+                <div class="auto-preview-dropdown-list">
+                  <% @erb_files.each do |file| %>
+                    <div class="auto-preview-dropdown-item<%= ' selected' if file == @template_path %>" data-value="<%= file %>" title="<%= file %>"><%= file %></div>
+                  <% end %>
+                </div>
+                <div class="auto-preview-dropdown-count"><%= @erb_files.size %> templates</div>
+              </div>
+            </div>
           </div>
 
           <div class="auto-preview-section">
             <div class="auto-preview-section-title">Controller Context</div>
-            <select class="auto-preview-type-select" name="controller_context" id="controller_context" onchange="this.form.submit()">
-              <% @controllers.each do |controller| %>
-                <option value="<%= controller %>" <%= 'selected' if controller == @controller_context %>><%= controller %></option>
-              <% end %>
-            </select>
+            <div class="auto-preview-filtered-dropdown" data-dropdown="controller_context">
+              <input type="hidden" name="controller_context" id="controller_context" value="<%= @controller_context %>">
+              <button type="button" class="auto-preview-dropdown-trigger" title="<%= @controller_context %>">
+                <%= @controller_context || "Select controller..." %>
+              </button>
+              <div class="auto-preview-dropdown-panel">
+                <div class="auto-preview-dropdown-search">
+                  <input type="text" placeholder="Search controllers..." autocomplete="off">
+                </div>
+                <div class="auto-preview-dropdown-list">
+                  <% @controllers.each do |controller| %>
+                    <div class="auto-preview-dropdown-item<%= ' selected' if controller == @controller_context %>" data-value="<%= controller %>" title="<%= controller %>"><%= controller %></div>
+                  <% end %>
+                </div>
+                <div class="auto-preview-dropdown-count"><%= @controllers.size %> controllers</div>
+              </div>
+            </div>
           </div>
 
           <% vars = @existing_vars.respond_to?(:to_unsafe_h) ? @existing_vars.to_unsafe_h : (@existing_vars || {}) %>
@@ -460,6 +614,156 @@
         });
 
         return html;
+      },
+
+      // Filtered Dropdown functionality
+      initFilteredDropdowns() {
+        document.querySelectorAll('.auto-preview-filtered-dropdown').forEach(dropdown => {
+          const trigger = dropdown.querySelector('.auto-preview-dropdown-trigger');
+          const panel = dropdown.querySelector('.auto-preview-dropdown-panel');
+          const searchInput = dropdown.querySelector('.auto-preview-dropdown-search input');
+          const list = dropdown.querySelector('.auto-preview-dropdown-list');
+          const hiddenInput = dropdown.querySelector('input[type="hidden"]');
+          const countEl = dropdown.querySelector('.auto-preview-dropdown-count');
+          const allItems = Array.from(list.querySelectorAll('.auto-preview-dropdown-item'));
+          const totalCount = allItems.length;
+          let highlightedIndex = -1;
+
+          const updateCount = (visibleCount) => {
+            const label = dropdown.dataset.dropdown === 'template' ? 'templates' : 'controllers';
+            if (visibleCount === totalCount) {
+              countEl.textContent = `${totalCount} ${label}`;
+            } else {
+              countEl.textContent = `${visibleCount} of ${totalCount} ${label}`;
+            }
+          };
+
+          const getVisibleItems = () => allItems.filter(item => item.style.display !== 'none');
+
+          const clearHighlight = () => {
+            allItems.forEach(item => item.classList.remove('highlighted'));
+            highlightedIndex = -1;
+          };
+
+          const highlightItem = (index) => {
+            const visibleItems = getVisibleItems();
+            clearHighlight();
+            if (index >= 0 && index < visibleItems.length) {
+              highlightedIndex = index;
+              visibleItems[index].classList.add('highlighted');
+              visibleItems[index].scrollIntoView({ block: 'nearest' });
+            }
+          };
+
+          const selectItem = (item) => {
+            const value = item.dataset.value;
+            hiddenInput.value = value;
+            trigger.textContent = value;
+            trigger.title = value;
+            allItems.forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+            closeDropdown();
+            // Submit form on selection
+            document.getElementById('autoPreviewForm').submit();
+          };
+
+          const openDropdown = () => {
+            // Close any other open dropdowns
+            document.querySelectorAll('.auto-preview-dropdown-panel.open').forEach(p => {
+              if (p !== panel) {
+                p.classList.remove('open');
+                p.closest('.auto-preview-filtered-dropdown').querySelector('.auto-preview-dropdown-trigger').classList.remove('open');
+              }
+            });
+            panel.classList.add('open');
+            trigger.classList.add('open');
+            searchInput.value = '';
+            filterItems('');
+            searchInput.focus();
+            highlightedIndex = -1;
+          };
+
+          const closeDropdown = () => {
+            panel.classList.remove('open');
+            trigger.classList.remove('open');
+            clearHighlight();
+          };
+
+          const filterItems = (query) => {
+            const lowerQuery = query.toLowerCase();
+            let visibleCount = 0;
+            allItems.forEach(item => {
+              const text = item.textContent.toLowerCase();
+              const matches = !query || text.includes(lowerQuery);
+              item.style.display = matches ? '' : 'none';
+              if (matches) visibleCount++;
+            });
+            updateCount(visibleCount);
+            clearHighlight();
+
+            // Show empty message if no results
+            let emptyMsg = list.querySelector('.auto-preview-dropdown-empty');
+            if (visibleCount === 0) {
+              if (!emptyMsg) {
+                emptyMsg = document.createElement('div');
+                emptyMsg.className = 'auto-preview-dropdown-empty';
+                emptyMsg.textContent = 'No matches found';
+                list.appendChild(emptyMsg);
+              }
+              emptyMsg.style.display = '';
+            } else if (emptyMsg) {
+              emptyMsg.style.display = 'none';
+            }
+          };
+
+          trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (panel.classList.contains('open')) {
+              closeDropdown();
+            } else {
+              openDropdown();
+            }
+          });
+
+          searchInput.addEventListener('input', (e) => {
+            filterItems(e.target.value);
+          });
+
+          searchInput.addEventListener('keydown', (e) => {
+            const visibleItems = getVisibleItems();
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              highlightItem(Math.min(highlightedIndex + 1, visibleItems.length - 1));
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              highlightItem(Math.max(highlightedIndex - 1, 0));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (highlightedIndex >= 0 && visibleItems[highlightedIndex]) {
+                selectItem(visibleItems[highlightedIndex]);
+              }
+            } else if (e.key === 'Escape') {
+              closeDropdown();
+              trigger.focus();
+            }
+          });
+
+          allItems.forEach(item => {
+            item.addEventListener('click', () => selectItem(item));
+            item.addEventListener('mouseenter', () => {
+              clearHighlight();
+              item.classList.add('highlighted');
+              highlightedIndex = getVisibleItems().indexOf(item);
+            });
+          });
+
+          // Close on outside click
+          document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target)) {
+              closeDropdown();
+            }
+          });
+        });
       }
     };
 
@@ -468,6 +772,9 @@
       const sourceCode = document.getElementById('sourceCode');
       const rawSource = <%= (@template_source || "").to_json.html_safe %>;
       sourceCode.innerHTML = AutoPreview.highlightERB(rawSource);
+
+      // Initialize filtered dropdowns
+      AutoPreview.initFilteredDropdowns();
     });
   </script>
 </body>
