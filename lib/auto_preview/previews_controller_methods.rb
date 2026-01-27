@@ -184,7 +184,7 @@ module AutoPreview
     end
 
     def view_paths
-      ActionController::Base.view_paths.map(&:to_path)
+      Rails.application.config.paths["app/views"].expanded
     end
 
     def valid_template?(template_path)
