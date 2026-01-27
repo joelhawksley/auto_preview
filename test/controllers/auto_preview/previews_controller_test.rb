@@ -499,5 +499,115 @@ module AutoPreview
         assert_equal ["ActionController::Base"], result
       end
     end
+
+    def test_add_scanned_instance_variables_returns_vars_with_instance_variables
+      controller = PreviewsController.new
+      template_source = '<%= @current_user.name %>'
+      vars = {}
+
+      result = controller.send(:add_scanned_instance_variables, template_source, vars)
+
+      assert result.key?("@current_user")
+      assert_equal "Factory", result["@current_user"]["type"]
+      assert_equal "user", result["@current_user"]["value"]
+    end
+
+    def test_add_scanned_instance_variables_skips_internal_rails_ivars
+      controller = PreviewsController.new
+      template_source = '<%= @_output_buffer %>'
+      vars = {}
+
+      result = controller.send(:add_scanned_instance_variables, template_source, vars)
+
+      refute result.key?("@_output_buffer")
+    end
+
+    def test_add_scanned_instance_variables_skips_existing_vars
+      controller = PreviewsController.new
+      template_source = '<%= @user.name %>'
+      vars = {"@user" => {"type" => "String", "value" => "existing"}}
+
+      result = controller.send(:add_scanned_instance_variables, template_source, vars)
+
+      assert_equal "existing", result["@user"]["value"]
+    end
+
+    def test_add_scanned_instance_variables_with_action_controller_parameters
+      controller = PreviewsController.new
+      template_source = '<%= @user.name %>'
+      vars = ActionController::Parameters.new({})
+
+      result = controller.send(:add_scanned_instance_variables, template_source, vars)
+
+      assert result.key?("@user")
+    end
+
+    def test_build_assigns_creates_assigns_from_instance_variables
+      controller = PreviewsController.new
+      vars = {"@current_user" => {"type" => "Factory", "value" => "user"}}
+
+      result = controller.send(:build_assigns, vars)
+
+      assert result.key?("current_user")
+      assert_instance_of User, result["current_user"]
+    end
+
+    def test_build_assigns_skips_non_instance_variables
+      controller = PreviewsController.new
+      vars = {"name" => {"type" => "String", "value" => "test"}}
+
+      result = controller.send(:build_assigns, vars)
+
+      refute result.key?("name")
+      refute result.key?("@name")
+    end
+
+    def test_build_assigns_handles_action_controller_parameters
+      controller = PreviewsController.new
+      vars = ActionController::Parameters.new({"@user" => {"type" => "String", "value" => "test"}})
+
+      result = controller.send(:build_assigns, vars)
+
+      assert result.key?("user")
+      assert_equal "test", result["user"]
+    end
+
+    def test_build_assigns_returns_empty_hash_for_invalid_vars
+      controller = PreviewsController.new
+
+      result = controller.send(:build_assigns, "invalid")
+
+      assert_equal({}, result)
+    end
+
+    def test_build_assigns_skips_non_hash_config
+      controller = PreviewsController.new
+      vars = {"@user" => "not a hash"}
+
+      result = controller.send(:build_assigns, vars)
+
+      refute result.key?("user")
+    end
+
+    def test_build_assigns_with_symbol_keys
+      controller = PreviewsController.new
+      vars = {"@user" => {type: "String", value: "test"}}
+
+      result = controller.send(:build_assigns, vars)
+
+      assert_equal "test", result["user"]
+    end
+
+    def test_build_assigns_with_plain_hash_config
+      # Test with a plain hash that doesn't respond to to_unsafe_h
+      controller = PreviewsController.new
+      config = {"type" => "String", "value" => "plain_hash_value"}
+      refute config.respond_to?(:to_unsafe_h), "Expected plain hash not to respond to to_unsafe_h"
+
+      vars = {"@plain" => config}
+      result = controller.send(:build_assigns, vars)
+
+      assert_equal "plain_hash_value", result["plain"]
+    end
   end
 end

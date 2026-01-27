@@ -12,6 +12,7 @@ gem "capybara"
 gem "selenium-webdriver"
 gem "factory_bot_rails"
 gem "sqlite3"
+gem "herb"
 
 gem "standardrb", "~> 1.0"
 

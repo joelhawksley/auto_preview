@@ -27,6 +27,8 @@ module AutoPreview
         next unless config.is_a?(ActionController::Parameters) || config.is_a?(Hash)
         # Skip predicate methods - they're handled separately as helper methods
         next if name.to_s.end_with?("?")
+        # Skip instance variables - they're handled separately as assigns
+        next if name.to_s.start_with?("@")
 
         type = config[:type] || config["type"]
         value = config[:value] || config["value"]

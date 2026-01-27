@@ -110,5 +110,18 @@ module AutoPreview
       assert_equal [], LocalsBuilder.extract_provided_names(nil)
       assert_equal [], LocalsBuilder.extract_provided_names("not a hash")
     end
+
+    def test_build_locals_skips_instance_variables
+      vars_params = ActionController::Parameters.new({
+        "@current_user": {type: "Factory", value: "user"},
+        name: {type: "String", value: "Test"}
+      })
+
+      result = LocalsBuilder.build_locals(vars_params)
+
+      refute result.key?(:@current_user)
+      refute result.key?(:"@current_user")
+      assert_equal "Test", result[:name]
+    end
   end
 end
