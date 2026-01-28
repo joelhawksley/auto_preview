@@ -8,7 +8,9 @@ module AutoPreview
     initializer "auto_preview.routes", after: :add_routing_paths do |app|
       if Rails.env.development?
         app.routes.append do
-          mount AutoPreview::Engine, at: "/auto_preview"
+          unless app.routes.named_routes.key?(:auto_preview)
+            mount AutoPreview::Engine, at: "/auto_preview"
+          end
         end
       end
     end
