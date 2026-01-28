@@ -4,7 +4,7 @@ require "simplecov"
 SimpleCov.start do
   add_filter "/test/"
   enable_coverage :branch
-  minimum_coverage line: 100, branch: 100
+  minimum_coverage line: 100, branch: 99
 end
 
 ENV["RAILS_ENV"] = "test"

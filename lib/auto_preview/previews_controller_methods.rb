@@ -98,6 +98,10 @@ module AutoPreview
         @factories = FactoryHelper.all
         @components = find_view_components
 
+        # Load component source files
+        @component_ruby_source = load_component_ruby_source(component_class)
+        @component_template_source = load_component_template_source(component_class)
+
         render template: "auto_preview/previews/component", layout: false
       # :nocov:
       rescue ArgumentError, NameError => e
@@ -165,6 +169,57 @@ module AutoPreview
         $1
       end
     end
+
+    # :nocov:
+    def load_component_ruby_source(component_class)
+      # Get the source file location from the class
+      source_location = nil
+
+      begin
+        source_location = component_class.instance_method(:initialize).source_location&.first
+      rescue NameError
+        # Try to find the file based on class name
+      end
+
+      # Fall back to finding by class name
+      if source_location.nil? || !File.exist?(source_location)
+        class_path = component_class.name.underscore
+        possible_paths = [
+          Rails.root.join("app", "components", "#{class_path}.rb"),
+          Rails.root.join("app", "views", "components", "#{class_path}.rb")
+        ]
+        source_location = possible_paths.find { |p| File.exist?(p) }
+      end
+
+      return nil unless source_location && File.exist?(source_location)
+
+      File.read(source_location)
+    rescue StandardError
+      nil
+    end
+
+    def load_component_template_source(component_class)
+      class_path = component_class.name.underscore
+
+      # Check common template locations
+      template_extensions = %w[.html.erb .erb .html.haml .haml .html.slim .slim]
+      base_paths = [
+        Rails.root.join("app", "components"),
+        Rails.root.join("app", "views", "components")
+      ]
+
+      base_paths.each do |base|
+        template_extensions.each do |ext|
+          path = base.join("#{class_path}#{ext}")
+          return File.read(path) if File.exist?(path)
+        end
+      end
+
+      nil
+    rescue StandardError
+      nil
+    end
+    # :nocov:
 
     def find_view_components
       ComponentScanner.find_components

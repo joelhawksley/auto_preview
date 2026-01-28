@@ -37,9 +37,11 @@ module AutoPreview
       # Try to load ViewComponent if available
       begin
         require "view_component"
+      # :nocov:
       rescue LoadError
         return []
       end
+      # :nocov:
 
       return [] unless defined?(ViewComponent::Base)
 

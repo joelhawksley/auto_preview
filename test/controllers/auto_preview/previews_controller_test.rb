@@ -824,5 +824,35 @@ module AutoPreview
       assert_includes response.body, "ViewComponents"
       assert_includes response.body, "ButtonComponent"
     end
+
+    def test_component_shows_source_code
+      get "/auto_preview/component", params: {component: "ButtonComponent"}
+
+      assert_response :success
+      # Should show the Ruby source tab
+      assert_includes response.body, "data-source-tab=\"ruby\""
+      # Should show the Template source tab
+      assert_includes response.body, "data-source-tab=\"template\""
+      # Should include the source code data
+      assert_includes response.body, "AutoPreviewRubySource"
+      assert_includes response.body, "AutoPreviewTemplateSource"
+    end
+
+    def test_load_component_ruby_source
+      controller = PreviewsController.new
+      source = controller.send(:load_component_ruby_source, ButtonComponent)
+
+      assert source.present?
+      assert_includes source, "class ButtonComponent"
+      assert_includes source, "def initialize"
+    end
+
+    def test_load_component_template_source
+      controller = PreviewsController.new
+      source = controller.send(:load_component_template_source, ButtonComponent)
+
+      assert source.present?
+      assert_includes source, "<button"
+    end
   end
 end

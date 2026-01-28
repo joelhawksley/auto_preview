@@ -204,6 +204,10 @@
       min-width: 0;
     }
 
+    .auto-preview-panel:first-child {
+      border-right: 1px solid #e2e8f0;
+    }
+
     .auto-preview-panel-header {
       padding: 8px 16px;
       background: #f8fafc;
@@ -213,6 +217,32 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: #64748b;
+    }
+
+    .auto-preview-panel-header-tabs {
+      display: flex;
+      gap: 16px;
+    }
+
+    .auto-preview-panel-tab {
+      cursor: pointer;
+      padding: 0;
+      border: none;
+      background: none;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      transition: color 0.15s;
+    }
+
+    .auto-preview-panel-tab:hover {
+      color: #64748b;
+    }
+
+    .auto-preview-panel-tab.active {
+      color: #7c3aed;
     }
 
     .auto-preview-panel-body {
@@ -225,6 +255,65 @@
       height: 100%;
       border: none;
     }
+
+    .auto-preview-source {
+      height: 100%;
+      overflow: auto;
+      padding: 0;
+      background: #1e293b;
+      display: none;
+    }
+
+    .auto-preview-source.active {
+      display: block;
+    }
+
+    .auto-preview-source pre {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .auto-preview-source code {
+      font-family: inherit;
+      display: block;
+    }
+
+    .source-line {
+      display: block;
+      padding: 0 16px;
+      min-height: 1.6em;
+    }
+
+    .source-line-number {
+      display: inline-block;
+      width: 3em;
+      margin-right: 1em;
+      color: #64748b;
+      text-align: right;
+      user-select: none;
+    }
+
+    /* Ruby Syntax Highlighting */
+    .ruby-keyword { color: #f472b6; }
+    .ruby-string { color: #a5f3fc; }
+    .ruby-symbol { color: #fcd34d; }
+    .ruby-comment { color: #6b7280; font-style: italic; }
+    .ruby-class { color: #93c5fd; }
+    .ruby-method { color: #86efac; }
+    .ruby-instance-var { color: #c4b5fd; }
+
+    /* ERB Syntax Highlighting */
+    .erb-tag { color: #fbbf24; }
+    .erb-output { color: #34d399; }
+    .erb-comment { color: #6b7280; font-style: italic; }
+    .html-tag { color: #60a5fa; }
+    .html-attr { color: #c4b5fd; }
+    .html-string { color: #fca5a5; }
 
     /* Filtered Dropdown Styles */
     .auto-preview-filtered-dropdown {
@@ -478,11 +567,42 @@
             <iframe class="auto-preview-iframe" id="previewFrame" srcdoc="<%= @rendered_content.gsub('"', '&quot;').html_safe %>"></iframe>
           </div>
         </div>
+
+        <% if @component_ruby_source.present? || @component_template_source.present? %>
+        <div class="auto-preview-panel">
+          <div class="auto-preview-panel-header">
+            <div class="auto-preview-panel-header-tabs">
+              <% if @component_ruby_source.present? %>
+                <button type="button" class="auto-preview-panel-tab active" data-source-tab="ruby">Ruby</button>
+              <% end %>
+              <% if @component_template_source.present? %>
+                <button type="button" class="auto-preview-panel-tab<%= ' active' unless @component_ruby_source.present? %>" data-source-tab="template">Template</button>
+              <% end %>
+            </div>
+          </div>
+          <div class="auto-preview-panel-body">
+            <% if @component_ruby_source.present? %>
+              <div class="auto-preview-source active" id="sourceRuby">
+                <pre><code id="rubySourceCode"></code></pre>
+              </div>
+            <% end %>
+            <% if @component_template_source.present? %>
+              <div class="auto-preview-source<%= ' active' unless @component_ruby_source.present? %>" id="sourceTemplate">
+                <pre><code id="templateSourceCode"></code></pre>
+              </div>
+            <% end %>
+          </div>
+        </div>
+        <% end %>
       </div>
     </main>
   </div>
 
   <script>
+    // Source data from server
+    window.AutoPreviewRubySource = <%= (@component_ruby_source || "").to_json.html_safe %>;
+    window.AutoPreviewTemplateSource = <%= (@component_template_source || "").to_json.html_safe %>;
+
     window.AutoPreview = {
       onTypeChange(paramKey, type) {
         const valueInput = document.getElementById('auto_preview_value_' + paramKey);
@@ -519,6 +639,110 @@
       setFactory(paramKey, value) {
         const valueInput = document.getElementById('auto_preview_value_' + paramKey);
         valueInput.value = value;
+      },
+
+      highlightRuby(source) {
+        // Escape HTML first
+        let html = source
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+        // Use placeholders to prevent re-processing
+        const placeholders = [];
+        const placeholder = (content, className) => {
+          const idx = placeholders.length;
+          placeholders.push(`<span class="${className}">${content}</span>`);
+          return `\x00${idx}\x00`;
+        };
+
+        // Highlight comments first (they take precedence)
+        html = html.replace(/(#.*)$/gm, (match) => placeholder(match, 'ruby-comment'));
+
+        // Highlight strings (double and single quoted)
+        html = html.replace(/("[^"\\]*(?:\\.[^"\\]*)*")/g, (match) => placeholder(match, 'ruby-string'));
+        html = html.replace(/('[^'\\]*(?:\\.[^'\\]*)*')/g, (match) => placeholder(match, 'ruby-string'));
+
+        // Highlight symbols
+        html = html.replace(/(:[a-zA-Z_][a-zA-Z0-9_]*)/g, (match) => placeholder(match, 'ruby-symbol'));
+
+        // Highlight instance variables
+        html = html.replace(/(@[a-zA-Z_][a-zA-Z0-9_]*)/g, (match) => placeholder(match, 'ruby-instance-var'));
+
+        // Highlight keywords
+        const keywords = ['def', 'end', 'class', 'module', 'if', 'else', 'elsif', 'unless', 'case', 'when', 'while', 'until', 'for', 'do', 'begin', 'rescue', 'ensure', 'raise', 'return', 'yield', 'super', 'self', 'nil', 'true', 'false', 'and', 'or', 'not', 'in', 'then', 'private', 'protected', 'public', 'attr_reader', 'attr_writer', 'attr_accessor', 'include', 'extend', 'require', 'require_relative', 'frozen_string_literal'];
+        keywords.forEach(kw => {
+          const pattern = new RegExp('\\b(' + kw + ')\\b', 'g');
+          html = html.replace(pattern, (match) => placeholder(match, 'ruby-keyword'));
+        });
+
+        // Highlight class/module names (capitalized words, but not placeholders)
+        html = html.replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, (match) => {
+          // Don't highlight if it's part of a placeholder
+          if (match.includes('\x00')) return match;
+          return placeholder(match, 'ruby-class');
+        });
+
+        // Restore placeholders
+        placeholders.forEach((replacement, idx) => {
+          html = html.replace(new RegExp(`\x00${idx}\x00`, 'g'), replacement);
+        });
+
+        return html;
+      },
+
+      highlightERB(source) {
+        // Build patterns using string concatenation to avoid ERB parsing
+        const erbOpen = '&lt;' + '%';
+        const erbClose = '%' + '&gt;';
+
+        // Escape HTML first
+        let html = source
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+        // Highlight ERB comments
+        const commentPattern = new RegExp('(' + erbOpen + '#[\\s\\S]*?' + erbClose + ')', 'g');
+        html = html.replace(commentPattern, '<span class="erb-comment">$1</span>');
+
+        // Highlight ERB output tags
+        const outputPattern = new RegExp('(' + erbOpen + '=[\\s\\S]*?' + erbClose + ')', 'g');
+        html = html.replace(outputPattern, '<span class="erb-output">$1</span>');
+
+        // Highlight ERB execution tags
+        const execPattern = new RegExp('(' + erbOpen + '[\\s\\S]*?' + erbClose + ')', 'g');
+        html = html.replace(execPattern, function(match) {
+          if (match.includes('class="erb-')) return match;
+          return '<span class="erb-tag">' + match + '</span>';
+        });
+
+        // Highlight HTML comments
+        html = html.replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="html-comment">$1</span>');
+
+        // Highlight HTML tags
+        html = html.replace(/(&lt;\/?[a-zA-Z][a-zA-Z0-9]*)((?:\s+[^&]*?)?&gt;)/g, function(match, tag, rest) {
+          let highlighted = rest.replace(/([a-zA-Z_-]+)(=)("[^"]*"|'[^']*')/g,
+            '<span class="html-attr">$1</span>$2<span class="html-string">$3</span>');
+          return '<span class="html-tag">' + tag + '</span>' + highlighted;
+        });
+
+        return html;
+      },
+
+      renderSource(source, highlightFn, containerId) {
+        const container = document.getElementById(containerId);
+        if (!container || !source) return;
+
+        const lines = source.split('\n');
+        const highlightedLines = lines.map((line, index) => {
+          const lineNum = index + 1;
+          const lineNumSpan = `<span class="source-line-number">${lineNum}</span>`;
+          const highlightedContent = highlightFn(line) || ' ';
+          return `<span class="source-line">${lineNumSpan}${highlightedContent}</span>`;
+        });
+
+        container.innerHTML = highlightedLines.join('\n');
       },
 
       initFilteredDropdowns() {
@@ -663,11 +887,39 @@
             }
           });
         });
+      },
+
+      initSourceTabs() {
+        document.querySelectorAll('.auto-preview-panel-tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            const sourceType = tab.dataset.sourceTab;
+
+            // Update tab active state
+            document.querySelectorAll('.auto-preview-panel-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Show the corresponding source panel
+            document.querySelectorAll('.auto-preview-source').forEach(s => s.classList.remove('active'));
+            const targetSource = document.getElementById(sourceType === 'ruby' ? 'sourceRuby' : 'sourceTemplate');
+            if (targetSource) {
+              targetSource.classList.add('active');
+            }
+          });
+        });
       }
     };
 
     document.addEventListener('DOMContentLoaded', function() {
       AutoPreview.initFilteredDropdowns();
+      AutoPreview.initSourceTabs();
+
+      // Render source code with highlighting
+      if (window.AutoPreviewRubySource) {
+        AutoPreview.renderSource(window.AutoPreviewRubySource, AutoPreview.highlightRuby.bind(AutoPreview), 'rubySourceCode');
+      }
+      if (window.AutoPreviewTemplateSource) {
+        AutoPreview.renderSource(window.AutoPreviewTemplateSource, AutoPreview.highlightERB.bind(AutoPreview), 'templateSourceCode');
+      }
     });
   </script>
 </body>

@@ -38,6 +38,9 @@ module AutoPreview
         mounted_engine = nil
         mounted_at = nil
 
+        # Create a mock named_routes
+        mock_named_routes = {}
+
         # Create a mock app with routes that captures the block and executes it
         mock_routes = Object.new
         mock_routes.define_singleton_method(:append) do |&block|
@@ -50,17 +53,21 @@ module AutoPreview
           end
           context.instance_eval(&block)
         end
+        mock_routes.define_singleton_method(:named_routes) { mock_named_routes }
 
         mock_app = Object.new
         mock_app.define_singleton_method(:routes) { mock_routes }
 
-        # Find and run the auto_preview.routes initializer
-        initializer = AutoPreview::Engine.initializers.find { |i| i.name == "auto_preview.routes" }
-        initializer.run(mock_app)
+        # Stub Rails.application.routes to return our mock
+        Rails.stub(:application, mock_app) do
+          # Find and run the auto_preview.routes initializer
+          initializer = AutoPreview::Engine.initializers.find { |i| i.name == "auto_preview.routes" }
+          initializer.run(mock_app)
 
-        assert block_executed, "Routes block should be executed in development environment"
-        assert_equal AutoPreview::Engine, mounted_engine
-        assert_equal "/auto_preview", mounted_at
+          assert block_executed, "Routes block should be executed in development environment"
+          assert_equal AutoPreview::Engine, mounted_engine
+          assert_equal "/auto_preview", mounted_at
+        end
       end
     end
 

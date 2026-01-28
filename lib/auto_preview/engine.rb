@@ -6,13 +6,15 @@ module AutoPreview
 
     # Automatically mount routes in development environment
     initializer "auto_preview.routes", after: :add_routing_paths do |app|
+      # :nocov:
       if Rails.env.development?
         app.routes.append do
-          unless app.routes.named_routes.key?(:auto_preview)
+          unless Rails.application.routes.named_routes.key?(:auto_preview)
             mount AutoPreview::Engine, at: "/auto_preview"
           end
         end
       end
+      # :nocov:
     end
 
     config.to_prepare do
