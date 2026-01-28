@@ -4,6 +4,15 @@ module AutoPreview
   class Engine < ::Rails::Engine
     isolate_namespace AutoPreview
 
+    # Automatically mount routes in development environment
+    initializer "auto_preview.routes", after: :add_routing_paths do |app|
+      if Rails.env.development?
+        app.routes.append do
+          mount AutoPreview::Engine, at: "/auto_preview"
+        end
+      end
+    end
+
     config.to_prepare do
       parent_class = AutoPreview.parent_controller.constantize
 
