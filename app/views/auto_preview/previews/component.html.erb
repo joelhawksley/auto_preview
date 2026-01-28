@@ -497,7 +497,7 @@
 
                   <select class="auto-preview-type-select"
                           name="vars[<%= name %>][type]"
-                          onchange="AutoPreview.onTypeChange('<%= param_key %>', this.value)">
+                          data-param-key="<%= param_key %>">
                     <% AutoPreview::PreviewsControllerMethods::RUBY_TYPES.each do |type| %>
                       <option value="<%= type %>" <%= 'selected' if type == current_type %>><%= type %></option>
                     <% end %>
@@ -512,7 +512,7 @@
 
                   <select class="auto-preview-type-select auto-preview-factory-select"
                           id="auto_preview_factory_<%= param_key %>"
-                          onchange="AutoPreview.setFactory('<%= param_key %>', this.value)"
+                          data-param-key="<%= param_key %>"
                           style="<%= current_type == 'Factory' ? '' : 'display:none;' %>">
                     <option value="">Select a factory...</option>
                     <% @factories.each do |factory| %>
@@ -526,13 +526,13 @@
                   <div class="auto-preview-bool-group" id="auto_preview_bool_<%= param_key %>" style="<%= current_type == 'Boolean' ? '' : 'display:none;' %>">
                     <label>
                       <input type="radio" name="bool_<%= param_key %>" value="true"
-                             onchange="AutoPreview.setBoolean('<%= param_key %>', 'true')"
+                             data-param-key="<%= param_key %>"
                              <%= 'checked' if current_value.to_s == 'true' %>>
                       True
                     </label>
                     <label>
                       <input type="radio" name="bool_<%= param_key %>" value="false"
-                             onchange="AutoPreview.setBoolean('<%= param_key %>', 'false')"
+                             data-param-key="<%= param_key %>"
                              <%= 'checked' if current_value.to_s == 'false' %>>
                       False
                     </label>
@@ -623,6 +623,31 @@
       setFactory(paramKey, value) {
         const valueInput = document.getElementById('auto_preview_value_' + paramKey);
         valueInput.value = value;
+      },
+
+      initFormHandlers() {
+        // Type select change handlers
+        document.querySelectorAll('.auto-preview-type-select[data-param-key]').forEach(select => {
+          if (!select.classList.contains('auto-preview-factory-select')) {
+            select.addEventListener('change', function() {
+              AutoPreview.onTypeChange(this.dataset.paramKey, this.value);
+            });
+          }
+        });
+
+        // Factory select change handlers
+        document.querySelectorAll('.auto-preview-factory-select').forEach(select => {
+          select.addEventListener('change', function() {
+            AutoPreview.setFactory(this.dataset.paramKey, this.value);
+          });
+        });
+
+        // Boolean radio change handlers
+        document.querySelectorAll('.auto-preview-bool-group input[type="radio"]').forEach(radio => {
+          radio.addEventListener('change', function() {
+            AutoPreview.setBoolean(this.dataset.paramKey, this.value);
+          });
+        });
       },
 
       highlightRuby(source) {
@@ -876,6 +901,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
       AutoPreview.initFilteredDropdowns();
+      AutoPreview.initFormHandlers();
 
       // Render source code with highlighting
       if (window.AutoPreviewRubySource) {
