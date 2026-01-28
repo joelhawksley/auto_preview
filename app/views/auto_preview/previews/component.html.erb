@@ -219,32 +219,6 @@
       color: #64748b;
     }
 
-    .auto-preview-panel-header-tabs {
-      display: flex;
-      gap: 16px;
-    }
-
-    .auto-preview-panel-tab {
-      cursor: pointer;
-      padding: 0;
-      border: none;
-      background: none;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #94a3b8;
-      transition: color 0.15s;
-    }
-
-    .auto-preview-panel-tab:hover {
-      color: #64748b;
-    }
-
-    .auto-preview-panel-tab.active {
-      color: #7c3aed;
-    }
-
     .auto-preview-panel-body {
       flex: 1;
       overflow: auto;
@@ -256,23 +230,39 @@
       border: none;
     }
 
+    .auto-preview-source-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .auto-preview-source-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .auto-preview-source-section:not(:last-child) {
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .auto-preview-source-section .auto-preview-panel-header {
+      flex-shrink: 0;
+    }
+
     .auto-preview-source {
-      height: 100%;
+      flex: 1;
       overflow: auto;
       padding: 0;
       background: #1e293b;
-      display: none;
-    }
-
-    .auto-preview-source.active {
-      display: block;
     }
 
     .auto-preview-source pre {
       margin: 0;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 13px;
-      line-height: 1.6;
+      font-size: 12px;
+      line-height: 1.15;
       color: #e2e8f0;
       white-space: pre-wrap;
       word-wrap: break-word;
@@ -285,14 +275,14 @@
 
     .source-line {
       display: block;
-      padding: 0 16px;
-      min-height: 1.6em;
+      padding: 0 12px;
+      min-height: 1.15em;
     }
 
     .source-line-number {
       display: inline-block;
-      width: 3em;
-      margin-right: 1em;
+      width: 2.5em;
+      margin-right: 0.75em;
       color: #64748b;
       text-align: right;
       user-select: none;
@@ -569,29 +559,23 @@
         </div>
 
         <% if @component_ruby_source.present? || @component_template_source.present? %>
-        <div class="auto-preview-panel">
-          <div class="auto-preview-panel-header">
-            <div class="auto-preview-panel-header-tabs">
-              <% if @component_ruby_source.present? %>
-                <button type="button" class="auto-preview-panel-tab active" data-source-tab="ruby">Ruby</button>
-              <% end %>
-              <% if @component_template_source.present? %>
-                <button type="button" class="auto-preview-panel-tab<%= ' active' unless @component_ruby_source.present? %>" data-source-tab="template">Template</button>
-              <% end %>
-            </div>
-          </div>
-          <div class="auto-preview-panel-body">
-            <% if @component_ruby_source.present? %>
-              <div class="auto-preview-source active" id="sourceRuby">
+        <div class="auto-preview-panel auto-preview-source-panel">
+          <% if @component_ruby_source.present? %>
+            <div class="auto-preview-source-section">
+              <div class="auto-preview-panel-header">Ruby</div>
+              <div class="auto-preview-source">
                 <pre><code id="rubySourceCode"></code></pre>
               </div>
-            <% end %>
-            <% if @component_template_source.present? %>
-              <div class="auto-preview-source<%= ' active' unless @component_ruby_source.present? %>" id="sourceTemplate">
+            </div>
+          <% end %>
+          <% if @component_template_source.present? %>
+            <div class="auto-preview-source-section">
+              <div class="auto-preview-panel-header">Template</div>
+              <div class="auto-preview-source">
                 <pre><code id="templateSourceCode"></code></pre>
               </div>
-            <% end %>
-          </div>
+            </div>
+          <% end %>
         </div>
         <% end %>
       </div>
@@ -887,31 +871,11 @@
             }
           });
         });
-      },
-
-      initSourceTabs() {
-        document.querySelectorAll('.auto-preview-panel-tab').forEach(tab => {
-          tab.addEventListener('click', () => {
-            const sourceType = tab.dataset.sourceTab;
-
-            // Update tab active state
-            document.querySelectorAll('.auto-preview-panel-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-
-            // Show the corresponding source panel
-            document.querySelectorAll('.auto-preview-source').forEach(s => s.classList.remove('active'));
-            const targetSource = document.getElementById(sourceType === 'ruby' ? 'sourceRuby' : 'sourceTemplate');
-            if (targetSource) {
-              targetSource.classList.add('active');
-            }
-          });
-        });
       }
     };
 
     document.addEventListener('DOMContentLoaded', function() {
       AutoPreview.initFilteredDropdowns();
-      AutoPreview.initSourceTabs();
 
       // Render source code with highlighting
       if (window.AutoPreviewRubySource) {
