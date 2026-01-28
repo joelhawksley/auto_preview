@@ -57,7 +57,7 @@ module AutoPreview
           locals = LocalsBuilder.build_locals(auto_generated_vars)
           predicate_methods = LocalsBuilder.build_predicates(auto_generated_vars)
           assigns = build_assigns(auto_generated_vars)
-          coverage, content = CoverageTracker.track(template_path, view_paths) do
+          coverage, content = CoverageTracker.track(template_path, all_erb_paths) do
             render_template_content(controller_class, render_path, locals, predicate_methods, assigns)
           end
           raise ActiveRecord::Rollback
@@ -98,7 +98,7 @@ module AutoPreview
         )
       else
         # Fallback for controllers without ActionController::Rendering
-        lookup_context = ActionView::LookupContext.new(view_paths)
+        lookup_context = ActionView::LookupContext.new(all_erb_paths)
         view_context = ActionView::Base.with_empty_template_cache.new(lookup_context, locals, self)
 
         # Set all assigns as instance variables
@@ -172,6 +172,7 @@ module AutoPreview
     def find_erb_files
       files = []
 
+      # First, add files from standard view paths (for proper template rendering)
       view_paths.each do |view_path|
         path = Pathname.new(view_path)
 
@@ -181,6 +182,19 @@ module AutoPreview
         end
       end
 
+      # Also search for ERB files in the entire Rails root (excluding standard directories)
+      rails_root = Pathname.new(::Rails.root)
+      Dir.glob(rails_root.join("**", "*.html.erb")).each do |file|
+        relative = Pathname.new(file).relative_path_from(rails_root).to_s
+
+        # Skip files already found via view_paths, layouts, auto_preview UI, and common non-template directories
+        next if relative.start_with?("app/views/")
+        next if relative.start_with?("node_modules/", "tmp/", "log/", "coverage/")
+        next if relative.include?("/layouts/") || relative.include?("/auto_preview/")
+
+        files << relative
+      end
+
       files.uniq.sort
     end
 
@@ -188,12 +202,19 @@ module AutoPreview
       Rails.application.config.paths["app/views"].expanded
     end
 
+    # Returns all paths where ERB templates can be found, including Rails root
+    def all_erb_paths
+      paths = view_paths.dup
+      paths << ::Rails.root.to_s
+      paths.uniq
+    end
+
     def valid_template?(template_path)
       find_erb_files.include?(template_path)
     end
 
     def read_template_source(template_path)
-      full_path = view_paths
+      full_path = all_erb_paths
         .map { |vp| File.join(vp, template_path) }
         .find { |fp| File.exist?(fp) }
       File.read(full_path)
