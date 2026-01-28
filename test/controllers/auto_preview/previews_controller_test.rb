@@ -4,17 +4,15 @@ require "test_helper"
 
 module AutoPreview
   class PreviewsControllerTest < ActionDispatch::IntegrationTest
-    # Helper to check if text appears in the iframe srcdoc (HTML-escaped)
+    # Helper to check if text appears in the iframe srcdoc
     def assert_preview_includes(text)
-      # The content is HTML-escaped in the srcdoc attribute
-      escaped_text = CGI.escapeHTML(text)
-      assert_includes response.body, escaped_text, "Expected preview iframe to include '#{text}'"
+      # The content is injected raw into the srcdoc attribute (with quotes escaped)
+      assert_includes response.body, text, "Expected preview iframe to include '#{text}'"
     end
 
     # Helper to check content is NOT in iframe srcdoc
     def refute_preview_includes(text)
-      escaped_text = CGI.escapeHTML(text)
-      refute_includes response.body, escaped_text, "Expected preview iframe NOT to include '#{text}'"
+      refute_includes response.body, text, "Expected preview iframe NOT to include '#{text}'"
     end
 
     def test_index_renders_template_selector

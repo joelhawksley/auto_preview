@@ -628,7 +628,7 @@
         <div class="auto-preview-panel">
           <div class="auto-preview-panel-header">Preview</div>
           <div class="auto-preview-panel-body">
-            <iframe class="auto-preview-iframe" id="previewFrame" srcdoc="<%= @rendered_content.gsub('"', '&quot;') %>"></iframe>
+            <iframe class="auto-preview-iframe" id="previewFrame" srcdoc="<%= @rendered_content.gsub('"', '&quot;').html_safe %>"></iframe>
           </div>
         </div>
 
