@@ -11,6 +11,7 @@ module AutoPreview
     def index
       @erb_files = find_erb_files
       @controllers = find_controllers
+      @components = find_view_components
     end
 
     def show
@@ -32,7 +33,142 @@ module AutoPreview
       render_with_controller_context(@controller_context, template_path, vars_params)
     end
 
+    def component
+      component_name = params[:component]
+
+      if component_name.blank?
+        render plain: "Component not found", status: :not_found
+        return
+      end
+
+      begin
+        @component_class = component_name.constantize
+      rescue NameError
+        render plain: "Component not found", status: :not_found
+        return
+      end
+
+      unless defined?(ViewComponent::Base) && @component_class < ViewComponent::Base
+        render plain: "Not a valid ViewComponent", status: :not_found
+        return
+      end
+
+      @component_name = component_name
+      @component_params = ComponentScanner.scan(@component_class)
+
+      # Auto-fill missing params
+      vars_params = auto_fill_component_params(@component_params, params[:vars])
+
+      render_component(@component_class, vars_params)
+    end
+
     private
+
+    def render_component(component_class, vars_params)
+      content = nil
+      auto_generated_vars = vars_params || {}
+      max_retries = 20
+      retries = 0
+
+      begin
+        ActiveRecord::Base.transaction do
+          # Build the component arguments
+          args = build_component_args(auto_generated_vars, @component_params)
+
+          # Instantiate and render the component
+          component_instance = component_class.new(**args)
+
+          # Use the controller's view context to render
+          controller_class = AutoPreview.parent_controller.constantize
+          if controller_class.respond_to?(:render)
+            content = controller_class.render(component_instance)
+          # :nocov:
+          else
+            lookup_context = ActionView::LookupContext.new(view_paths)
+            view_context = ActionView::Base.with_empty_template_cache.new(lookup_context, {}, self)
+            content = view_context.render(component_instance)
+          end
+          # :nocov:
+
+          raise ActiveRecord::Rollback
+        end
+
+        @rendered_content = content
+        @existing_vars = auto_generated_vars
+        @factories = FactoryHelper.all
+        @components = find_view_components
+
+        render template: "auto_preview/previews/component", layout: false
+      # :nocov:
+      rescue ArgumentError, NameError => e
+        if retries < max_retries
+          # Try to extract missing argument from error
+          missing_var = extract_missing_component_arg(e)
+          if missing_var
+            auto_generated_vars = add_component_var(auto_generated_vars, missing_var)
+            retries += 1
+            retry
+          end
+        end
+        raise e
+      end
+      # :nocov:
+    end
+
+    def build_component_args(vars, component_params)
+      args = {}
+
+      vars.each do |name, config|
+        next if name.to_s.start_with?("@") # Skip instance variables
+
+        # :nocov:
+        cfg = config.respond_to?(:to_unsafe_h) ? config.to_unsafe_h : config
+        # :nocov:
+        type = cfg["type"] || cfg[:type] || "String"
+        value = cfg["value"] || cfg[:value] || ""
+
+        args[name.to_sym] = ValueCoercer.coerce(value, type)
+      end
+
+      args
+    end
+
+    def auto_fill_component_params(component_params, provided_vars)
+      vars = provided_vars.respond_to?(:to_unsafe_h) ? provided_vars.to_unsafe_h.deep_dup : (provided_vars || {}).deep_dup
+
+      component_params.each do |param|
+        name = param[:name]
+        next if vars.key?(name) || vars.key?(name.to_sym)
+
+        type, value = TypeInferrer.infer(name)
+        vars[name] = {"type" => type, "value" => value}
+      end
+
+      vars
+    end
+
+    def add_component_var(vars, var_name)
+      # :nocov:
+      vars = vars.respond_to?(:to_unsafe_h) ? vars.to_unsafe_h.deep_dup : (vars || {}).deep_dup
+      # :nocov:
+      type, value = TypeInferrer.infer(var_name)
+      vars[var_name] = {"type" => type, "value" => value}
+      vars
+    end
+
+    def extract_missing_component_arg(error)
+      # ArgumentError: missing keyword: :title
+      if error.message =~ /missing keyword[s]?: :(\w+)/
+        $1
+      # NameError for undefined local variable
+      elsif error.message =~ /undefined local variable or method `(\w+)'/
+        $1
+      end
+    end
+
+    def find_view_components
+      ComponentScanner.find_components
+    end
 
     def render_with_controller_context(controller_name, template_path, vars_params)
       controller_class = controller_name.constantize

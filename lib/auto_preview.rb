@@ -12,6 +12,7 @@ require_relative "auto_preview/locals_scanner"
 require_relative "auto_preview/coverage_tracker"
 require_relative "auto_preview/preset_generator"
 require_relative "auto_preview/instance_variable_scanner"
+require_relative "auto_preview/component_scanner"
 require_relative "auto_preview/previews_controller_methods"
 
 module AutoPreview

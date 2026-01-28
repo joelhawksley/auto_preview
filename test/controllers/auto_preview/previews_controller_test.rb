@@ -670,5 +670,159 @@ module AutoPreview
     ensure
       FileUtils.rm_rf(temp_dir) if temp_dir
     end
+
+    def test_find_view_components_returns_components
+      # Ensure the component is loaded
+      require_relative "../../../app/components/button_component"
+
+      controller = PreviewsController.new
+      components = controller.send(:find_view_components)
+
+      button = components.find { |c| c[:name] == "ButtonComponent" }
+      assert button, "Expected to find ButtonComponent"
+    end
+
+    def test_auto_fill_component_params_fills_missing_params
+      controller = PreviewsController.new
+      component_params = [
+        {name: "label", required: true, keyword: true},
+        {name: "variant", required: false, keyword: true}
+      ]
+
+      result = controller.send(:auto_fill_component_params, component_params, {})
+
+      assert result.key?("label")
+      assert result.key?("variant")
+    end
+
+    def test_build_component_args_creates_keyword_args
+      controller = PreviewsController.new
+      vars = {
+        "label" => {"type" => "String", "value" => "Click me"},
+        "disabled" => {"type" => "Boolean", "value" => "true"}
+      }
+      component_params = []
+
+      result = controller.send(:build_component_args, vars, component_params)
+
+      assert_equal "Click me", result[:label]
+      assert_equal true, result[:disabled]
+    end
+
+    def test_build_component_args_skips_instance_variables
+      controller = PreviewsController.new
+      vars = {
+        "@user" => {"type" => "String", "value" => "test"},
+        "label" => {"type" => "String", "value" => "Click"}
+      }
+
+      result = controller.send(:build_component_args, vars, [])
+
+      refute result.key?(:@user)
+      refute result.key?(:"@user")
+      assert_equal "Click", result[:label]
+    end
+
+    def test_extract_missing_component_arg_from_keyword_error
+      controller = PreviewsController.new
+      error = ArgumentError.new("missing keyword: :title")
+
+      result = controller.send(:extract_missing_component_arg, error)
+
+      assert_equal "title", result
+    end
+
+    def test_extract_missing_component_arg_from_name_error
+      controller = PreviewsController.new
+      error = NameError.new("undefined local variable or method `foo'")
+
+      result = controller.send(:extract_missing_component_arg, error)
+
+      assert_equal "foo", result
+    end
+
+    def test_extract_missing_component_arg_returns_nil_for_unknown_error
+      controller = PreviewsController.new
+      error = StandardError.new("something else")
+
+      result = controller.send(:extract_missing_component_arg, error)
+
+      assert_nil result
+    end
+
+    def test_add_component_var_adds_variable
+      controller = PreviewsController.new
+      vars = {"existing" => {"type" => "String", "value" => "test"}}
+
+      result = controller.send(:add_component_var, vars, "new_var")
+
+      assert result.key?("new_var")
+      assert result.key?("existing")
+    end
+  end
+
+  class ComponentControllerTest < ActionDispatch::IntegrationTest
+    def test_component_renders_view_component
+      get "/auto_preview/component", params: {
+        component: "ButtonComponent",
+        vars: {
+          label: {type: "String", value: "Click Me"},
+          variant: {type: "String", value: "primary"},
+          disabled: {type: "Boolean", value: "false"}
+        }
+      }
+
+      assert_response :success
+      assert_includes response.body, "Click Me"
+      assert_includes response.body, "btn-primary"
+    end
+
+    def test_component_returns_not_found_for_blank_component
+      get "/auto_preview/component", params: {component: ""}
+
+      assert_response :not_found
+      assert_includes response.body, "Component not found"
+    end
+
+    def test_component_returns_not_found_for_missing_component
+      get "/auto_preview/component", params: {component: "NonexistentComponent"}
+
+      assert_response :not_found
+      assert_includes response.body, "Component not found"
+    end
+
+    def test_component_returns_not_found_for_non_view_component
+      get "/auto_preview/component", params: {component: "String"}
+
+      assert_response :not_found
+      assert_includes response.body, "Not a valid ViewComponent"
+    end
+
+    def test_component_auto_fills_missing_params
+      get "/auto_preview/component", params: {component: "ButtonComponent"}
+
+      assert_response :success
+      # Should auto-fill label and render
+      assert_includes response.body, "ButtonComponent"
+    end
+
+    def test_component_shows_parameter_inputs
+      get "/auto_preview/component", params: {
+        component: "ButtonComponent",
+        vars: {label: {type: "String", value: "Test"}}
+      }
+
+      assert_response :success
+      assert_includes response.body, "vars[label][type]"
+      assert_includes response.body, "vars[label][value]"
+    end
+
+    def test_index_shows_view_components
+      get "/auto_preview"
+
+      assert_response :success
+      assert_includes response.body, "ViewComponents"
+      assert_includes response.body, "ButtonComponent"
+    end
   end
 end

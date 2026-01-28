@@ -15,6 +15,7 @@ require "action_controller/railtie"
 require "action_view/railtie"
 require "active_record/railtie"
 
+require "view_component"
 require "auto_preview"
 require "factory_bot_rails"
 
@@ -26,6 +27,7 @@ class DummyApp < Rails::Application
   config.hosts << "localhost"
   config.secret_key_base = "test_secret_key_base_for_auto_preview_gem"
   config.active_record.maintain_test_schema = false
+  config.view_component.view_component_path = "app/components"
 end
 
 # Configure AutoPreview to use the host app's ApplicationController

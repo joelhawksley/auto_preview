@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AutoPreview - <%= @component_name %></title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+
+    .auto-preview-layout {
+      display: flex;
+      height: 100vh;
+    }
+
+    .auto-preview-sidebar {
+      width: 380px;
+      min-width: 380px;
+      background: #ffffff;
+      border-right: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .auto-preview-sidebar-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    .auto-preview-sidebar-header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .auto-preview-sidebar-header a {
+      color: #3b82f6;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .auto-preview-sidebar-header a:hover {
+      text-decoration: underline;
+    }
+
+    .auto-preview-component-info {
+      padding: 12px 20px;
+      background: #faf5ff;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .auto-preview-component-info code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #7c3aed;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .auto-preview-sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    .auto-preview-section {
+      margin-bottom: 20px;
+    }
+
+    .auto-preview-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+
+    .auto-preview-var {
+      padding: 12px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 10px;
+    }
+
+    .auto-preview-var-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .auto-preview-var-name {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .auto-preview-var-required {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #fee2e2;
+      color: #dc2626;
+      font-weight: 500;
+    }
+
+    .auto-preview-var-optional {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #e0e7ff;
+      color: #4f46e5;
+      font-weight: 500;
+    }
+
+    .auto-preview-type-select,
+    .auto-preview-value-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      margin-top: 6px;
+    }
+
+    .auto-preview-type-select:focus,
+    .auto-preview-value-input:focus {
+      outline: none;
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .auto-preview-bool-group {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      padding: 8px 0;
+    }
+
+    .auto-preview-bool-group label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .auto-preview-submit {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      background: #7c3aed;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .auto-preview-submit:hover {
+      background: #6d28d9;
+    }
+
+    .auto-preview-empty {
+      text-align: center;
+      color: #64748b;
+      padding: 24px 0;
+      font-size: 14px;
+    }
+
+    .auto-preview-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .auto-preview-content {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .auto-preview-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .auto-preview-panel-header {
+      padding: 8px 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+    }
+
+    .auto-preview-panel-body {
+      flex: 1;
+      overflow: auto;
+    }
+
+    .auto-preview-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Filtered Dropdown Styles */
+    .auto-preview-filtered-dropdown {
+      position: relative;
+      width: 100%;
+    }
+
+    .auto-preview-dropdown-trigger {
+      width: 100%;
+      padding: 8px 10px;
+      padding-right: 28px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      position: relative;
+    }
+
+    .auto-preview-dropdown-trigger:focus {
+      outline: none;
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+    }
+
+    .auto-preview-dropdown-trigger::after {
+      content: '';
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid #64748b;
+      pointer-events: none;
+    }
+
+    .auto-preview-dropdown-trigger.open::after {
+      border-top: none;
+      border-bottom: 5px solid #64748b;
+    }
+
+    .auto-preview-dropdown-panel {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      z-index: 1000;
+      display: none;
+      max-height: 320px;
+      overflow: hidden;
+      flex-direction: column;
+    }
+
+    .auto-preview-dropdown-panel.open {
+      display: flex;
+    }
+
+    .auto-preview-dropdown-search {
+      padding: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    .auto-preview-dropdown-search input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 13px;
+      background: #f8fafc;
+    }
+
+    .auto-preview-dropdown-search input:focus {
+      outline: none;
+      border-color: #7c3aed;
+      background: #fff;
+    }
+
+    .auto-preview-dropdown-list {
+      overflow-y: auto;
+      max-height: 260px;
+      flex: 1;
+    }
+
+    .auto-preview-dropdown-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .auto-preview-dropdown-item:hover,
+    .auto-preview-dropdown-item.highlighted {
+      background: #faf5ff;
+    }
+
+    .auto-preview-dropdown-item.selected {
+      background: #ede9fe;
+      font-weight: 500;
+    }
+
+    .auto-preview-dropdown-empty {
+      padding: 12px;
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .auto-preview-dropdown-count {
+      padding: 6px 12px;
+      font-size: 11px;
+      color: #64748b;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="auto-preview-layout">
+    <aside class="auto-preview-sidebar">
+      <div class="auto-preview-sidebar-header">
+        <h1>AutoPreview</h1>
+        <a href="<%= url_for(action: :index) %>">← Back to list</a>
+      </div>
+
+      <div class="auto-preview-component-info">
+        <code><%= @component_name %></code>
+      </div>
+
+      <div class="auto-preview-sidebar-body">
+        <%= form_tag url_for(action: :component), method: :get, id: "autoPreviewForm" do %>
+          <div class="auto-preview-section">
+            <div class="auto-preview-section-title">Component</div>
+            <div class="auto-preview-filtered-dropdown" data-dropdown="component">
+              <input type="hidden" name="component" value="<%= @component_name %>">
+              <button type="button" class="auto-preview-dropdown-trigger" title="<%= @component_name %>">
+                <%= @component_name %>
+              </button>
+              <div class="auto-preview-dropdown-panel">
+                <div class="auto-preview-dropdown-search">
+                  <input type="text" placeholder="Search components..." autocomplete="off">
+                </div>
+                <div class="auto-preview-dropdown-list">
+                  <% @components.each do |comp| %>
+                    <div class="auto-preview-dropdown-item<%= ' selected' if comp[:name] == @component_name %>" data-value="<%= comp[:name] %>" title="<%= comp[:name] %>"><%= comp[:name] %></div>
+                  <% end %>
+                </div>
+                <div class="auto-preview-dropdown-count"><%= @components.size %> components</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="auto-preview-section">
+            <div class="auto-preview-section-title">Parameters</div>
+
+            <% if @existing_vars.present? %>
+              <% @existing_vars.each do |name, config| %>
+                <% next if name.to_s.start_with?("@") %>
+                <%
+                  cfg = config.respond_to?(:to_unsafe_h) ? config.to_unsafe_h : config
+                  current_type = cfg["type"] || cfg[:type] || "String"
+                  current_value = cfg["value"] || cfg[:value] || ""
+                  param_key = name.to_s.parameterize.underscore
+                  param_info = @component_params.find { |p| p[:name] == name.to_s }
+                  is_required = param_info && param_info[:required]
+                %>
+                <div class="auto-preview-var">
+                  <div class="auto-preview-var-header">
+                    <span class="auto-preview-var-name"><%= name %></span>
+                    <% if is_required %>
+                      <span class="auto-preview-var-required">required</span>
+                    <% else %>
+                      <span class="auto-preview-var-optional">optional</span>
+                    <% end %>
+                  </div>
+
+                  <select class="auto-preview-type-select"
+                          name="vars[<%= name %>][type]"
+                          onchange="AutoPreview.onTypeChange('<%= param_key %>', this.value)">
+                    <% AutoPreview::PreviewsControllerMethods::RUBY_TYPES.each do |type| %>
+                      <option value="<%= type %>" <%= 'selected' if type == current_type %>><%= type %></option>
+                    <% end %>
+                  </select>
+
+                  <input class="auto-preview-value-input"
+                         type="text"
+                         name="vars[<%= name %>][value]"
+                         id="auto_preview_value_<%= param_key %>"
+                         value="<%= current_value %>"
+                         style="<%= (current_type == 'Boolean' || current_type == 'Factory') ? 'display:none;' : '' %>">
+
+                  <select class="auto-preview-type-select auto-preview-factory-select"
+                          id="auto_preview_factory_<%= param_key %>"
+                          onchange="AutoPreview.setFactory('<%= param_key %>', this.value)"
+                          style="<%= current_type == 'Factory' ? '' : 'display:none;' %>">
+                    <option value="">Select a factory...</option>
+                    <% @factories.each do |factory| %>
+                      <option value="<%= factory[:name] %>" <%= 'selected' if current_value == factory[:name] %>><%= factory[:name] %></option>
+                      <% factory[:traits].each do |trait| %>
+                        <option value="<%= factory[:name] %>:<%= trait %>" <%= 'selected' if current_value == "#{factory[:name]}:#{trait}" %>><%= factory[:name] %>:<%= trait %></option>
+                      <% end %>
+                    <% end %>
+                  </select>
+
+                  <div class="auto-preview-bool-group" id="auto_preview_bool_<%= param_key %>" style="<%= current_type == 'Boolean' ? '' : 'display:none;' %>">
+                    <label>
+                      <input type="radio" name="bool_<%= param_key %>" value="true"
+                             onchange="AutoPreview.setBoolean('<%= param_key %>', 'true')"
+                             <%= 'checked' if current_value.to_s == 'true' %>>
+                      True
+                    </label>
+                    <label>
+                      <input type="radio" name="bool_<%= param_key %>" value="false"
+                             onchange="AutoPreview.setBoolean('<%= param_key %>', 'false')"
+                             <%= 'checked' if current_value.to_s == 'false' %>>
+                      False
+                    </label>
+                  </div>
+                </div>
+              <% end %>
+            <% else %>
+              <div class="auto-preview-empty">No parameters detected.</div>
+            <% end %>
+          </div>
+
+          <button class="auto-preview-submit" type="submit">Update Preview</button>
+        <% end %>
+      </div>
+    </aside>
+
+    <main class="auto-preview-main">
+      <div class="auto-preview-content">
+        <div class="auto-preview-panel">
+          <div class="auto-preview-panel-header">Preview</div>
+          <div class="auto-preview-panel-body">
+            <iframe class="auto-preview-iframe" id="previewFrame" srcdoc="<%= @rendered_content.gsub('"', '&quot;').html_safe %>"></iframe>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    window.AutoPreview = {
+      onTypeChange(paramKey, type) {
+        const valueInput = document.getElementById('auto_preview_value_' + paramKey);
+        const boolGroup = document.getElementById('auto_preview_bool_' + paramKey);
+        const factorySelect = document.getElementById('auto_preview_factory_' + paramKey);
+
+        if (!valueInput || !boolGroup) return;
+
+        if (type === 'Boolean') {
+          valueInput.style.display = 'none';
+          boolGroup.style.display = 'flex';
+          if (factorySelect) factorySelect.style.display = 'none';
+        } else if (type === 'Factory') {
+          valueInput.style.display = 'none';
+          boolGroup.style.display = 'none';
+          if (factorySelect) {
+            factorySelect.style.display = 'block';
+            if (factorySelect.value) {
+              valueInput.value = factorySelect.value;
+            }
+          }
+        } else {
+          valueInput.style.display = 'block';
+          boolGroup.style.display = 'none';
+          if (factorySelect) factorySelect.style.display = 'none';
+        }
+      },
+
+      setBoolean(paramKey, value) {
+        const valueInput = document.getElementById('auto_preview_value_' + paramKey);
+        valueInput.value = value;
+      },
+
+      setFactory(paramKey, value) {
+        const valueInput = document.getElementById('auto_preview_value_' + paramKey);
+        valueInput.value = value;
+      },
+
+      initFilteredDropdowns() {
+        document.querySelectorAll('.auto-preview-filtered-dropdown').forEach(dropdown => {
+          const trigger = dropdown.querySelector('.auto-preview-dropdown-trigger');
+          const panel = dropdown.querySelector('.auto-preview-dropdown-panel');
+          const searchInput = dropdown.querySelector('.auto-preview-dropdown-search input');
+          const list = dropdown.querySelector('.auto-preview-dropdown-list');
+          const hiddenInput = dropdown.querySelector('input[type="hidden"]');
+          const countEl = dropdown.querySelector('.auto-preview-dropdown-count');
+          const allItems = Array.from(list.querySelectorAll('.auto-preview-dropdown-item'));
+          const totalCount = allItems.length;
+          let highlightedIndex = -1;
+
+          const updateCount = (visibleCount) => {
+            if (visibleCount === totalCount) {
+              countEl.textContent = `${totalCount} components`;
+            } else {
+              countEl.textContent = `${visibleCount} of ${totalCount} components`;
+            }
+          };
+
+          const getVisibleItems = () => allItems.filter(item => item.style.display !== 'none');
+
+          const clearHighlight = () => {
+            allItems.forEach(item => item.classList.remove('highlighted'));
+            highlightedIndex = -1;
+          };
+
+          const highlightItem = (index) => {
+            const visibleItems = getVisibleItems();
+            clearHighlight();
+            if (index >= 0 && index < visibleItems.length) {
+              highlightedIndex = index;
+              visibleItems[index].classList.add('highlighted');
+              visibleItems[index].scrollIntoView({ block: 'nearest' });
+            }
+          };
+
+          const selectItem = (item) => {
+            const value = item.dataset.value;
+            hiddenInput.value = value;
+            trigger.textContent = value;
+            trigger.title = value;
+            allItems.forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+            closeDropdown();
+            document.getElementById('autoPreviewForm').submit();
+          };
+
+          const openDropdown = () => {
+            document.querySelectorAll('.auto-preview-dropdown-panel.open').forEach(p => {
+              if (p !== panel) {
+                p.classList.remove('open');
+                p.closest('.auto-preview-filtered-dropdown').querySelector('.auto-preview-dropdown-trigger').classList.remove('open');
+              }
+            });
+            panel.classList.add('open');
+            trigger.classList.add('open');
+            searchInput.value = '';
+            filterItems('');
+            searchInput.focus();
+            highlightedIndex = -1;
+          };
+
+          const closeDropdown = () => {
+            panel.classList.remove('open');
+            trigger.classList.remove('open');
+            clearHighlight();
+          };
+
+          const filterItems = (query) => {
+            const lowerQuery = query.toLowerCase();
+            let visibleCount = 0;
+            allItems.forEach(item => {
+              const text = item.textContent.toLowerCase();
+              const matches = !query || text.includes(lowerQuery);
+              item.style.display = matches ? '' : 'none';
+              if (matches) visibleCount++;
+            });
+            updateCount(visibleCount);
+            clearHighlight();
+
+            let emptyMsg = list.querySelector('.auto-preview-dropdown-empty');
+            if (visibleCount === 0) {
+              if (!emptyMsg) {
+                emptyMsg = document.createElement('div');
+                emptyMsg.className = 'auto-preview-dropdown-empty';
+                emptyMsg.textContent = 'No matches found';
+                list.appendChild(emptyMsg);
+              }
+              emptyMsg.style.display = '';
+            } else if (emptyMsg) {
+              emptyMsg.style.display = 'none';
+            }
+          };
+
+          trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (panel.classList.contains('open')) {
+              closeDropdown();
+            } else {
+              openDropdown();
+            }
+          });
+
+          searchInput.addEventListener('input', (e) => {
+            filterItems(e.target.value);
+          });
+
+          searchInput.addEventListener('keydown', (e) => {
+            const visibleItems = getVisibleItems();
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              highlightItem(Math.min(highlightedIndex + 1, visibleItems.length - 1));
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              highlightItem(Math.max(highlightedIndex - 1, 0));
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (highlightedIndex >= 0 && visibleItems[highlightedIndex]) {
+                selectItem(visibleItems[highlightedIndex]);
+              }
+            } else if (e.key === 'Escape') {
+              closeDropdown();
+              trigger.focus();
+            }
+          });
+
+          allItems.forEach(item => {
+            item.addEventListener('click', () => selectItem(item));
+            item.addEventListener('mouseenter', () => {
+              clearHighlight();
+              item.classList.add('highlighted');
+              highlightedIndex = getVisibleItems().indexOf(item);
+            });
+          });
+
+          document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target)) {
+              closeDropdown();
+            }
+          });
+        });
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      AutoPreview.initFilteredDropdowns();
+    });
+  </script>
+</body>
+</html>

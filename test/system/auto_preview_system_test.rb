@@ -30,7 +30,7 @@ class AutoPreviewSystemTest < SystemTestCase
 
     # Select the multi_var template
     select_from_dropdown "template", "pages/multi_var.html.erb"
-    click_button "Preview"
+    click_button "Preview Template"
 
     # Should auto-fill values and render the template directly
     assert_preview_text "Multi Variable Test"
@@ -86,7 +86,7 @@ class AutoPreviewSystemTest < SystemTestCase
     visit "/auto_preview"
 
     select_from_dropdown "template", "pages/home.html.erb"
-    click_button "Preview"
+    click_button "Preview Template"
 
     assert_preview_text "Home Page"
   end
@@ -111,7 +111,7 @@ class AutoPreviewSystemTest < SystemTestCase
     # Select a template and MinimalController context
     select_from_dropdown "template", "pages/home.html.erb"
     select_from_dropdown "controller_context", "MinimalController"
-    click_button "Preview"
+    click_button "Preview Template"
 
     # Should still render successfully even without helpers
     assert_preview_text "Home Page"
@@ -123,7 +123,7 @@ class AutoPreviewSystemTest < SystemTestCase
     visit "/auto_preview"
 
     select_from_dropdown "template", "pages/user_card.html.erb"
-    click_button "Preview"
+    click_button "Preview Template"
 
     # Should auto-detect user factory and render with factory-created user
     assert_preview_text "John Doe"
@@ -151,7 +151,7 @@ class AutoPreviewSystemTest < SystemTestCase
     visit "/auto_preview"
 
     select_from_dropdown "template", "pages/conditional_feature.html.erb"
-    click_button "Preview"
+    click_button "Preview Template"
 
     # Should auto-fill predicate and render the conditional feature page
     assert_preview_text "Conditional Feature Demo"
@@ -188,7 +188,7 @@ class AutoPreviewSystemTest < SystemTestCase
     visit "/auto_preview"
 
     select_from_dropdown "template", "pages/greeting.html.erb"
-    click_button "Preview"
+    click_button "Preview Template"
 
     # Should auto-fill and render content
     assert_preview_text "Hello,"

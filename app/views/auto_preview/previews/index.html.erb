@@ -12,11 +12,20 @@
     }
     h1 { color: #0f172a; margin-bottom: 8px; }
     p { color: #64748b; margin-bottom: 24px; }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+    }
     form {
       background: #fff;
       padding: 24px;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
+      margin-bottom: 20px;
     }
     .form-group { margin-bottom: 20px; }
     label {
@@ -45,6 +54,12 @@
     }
     button[type="submit"]:hover {
       background: #1d4ed8;
+    }
+    .component-btn {
+      background: #7c3aed;
+    }
+    .component-btn:hover {
+      background: #6d28d9;
     }
 
     /* Filtered Dropdown Styles */
@@ -185,9 +200,10 @@
 </head>
 <body>
   <h1>AutoPreview</h1>
-  <p>Select an ERB template to preview:</p>
+  <p>Select an ERB template or ViewComponent to preview:</p>
 
   <% if @erb_files.any? %>
+    <div class="section-title">ERB Templates</div>
     <%= form_tag url_for(action: :show), method: :get, id: "autoPreviewForm" do %>
       <div class="form-group">
         <label for="template">Template</label>
@@ -232,10 +248,38 @@
         <p class="hint">The template will be rendered with the selected controller's helpers available.</p>
       </div>
 
-      <button type="submit">Preview</button>
+      <button type="submit">Preview Template</button>
     <% end %>
   <% else %>
     <p><em>No ERB templates found.</em></p>
+  <% end %>
+
+  <% if @components.any? %>
+    <div class="section-title">ViewComponents</div>
+    <%= form_tag url_for(action: :component), method: :get, id: "componentPreviewForm" do %>
+      <div class="form-group">
+        <label for="component">Component</label>
+        <div class="auto-preview-filtered-dropdown" data-dropdown="component">
+          <input type="hidden" name="component" id="component" value="">
+          <button type="button" class="auto-preview-dropdown-trigger placeholder">
+            Select a component...
+          </button>
+          <div class="auto-preview-dropdown-panel">
+            <div class="auto-preview-dropdown-search">
+              <input type="text" placeholder="Search components..." autocomplete="off">
+            </div>
+            <div class="auto-preview-dropdown-list">
+              <% @components.each do |comp| %>
+                <div class="auto-preview-dropdown-item" data-value="<%= comp[:name] %>" title="<%= comp[:name] %>"><%= comp[:name] %></div>
+              <% end %>
+            </div>
+            <div class="auto-preview-dropdown-count"><%= @components.size %> components</div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="component-btn">Preview Component</button>
+    <% end %>
   <% end %>
 
   <script>
