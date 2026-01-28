@@ -3,6 +3,7 @@ PATH
   specs:
     auto_preview (0.1.0)
       actionview_precompiler (~> 0.4)
+      herb
       rails
 
 GEM
