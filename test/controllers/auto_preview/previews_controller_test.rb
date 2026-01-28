@@ -609,5 +609,68 @@ module AutoPreview
 
       assert_equal "plain_hash_value", result["plain"]
     end
+
+    def test_view_component_template_returns_true_when_rb_file_exists
+      controller = PreviewsController.new
+      temp_dir = Dir.mktmpdir
+
+      # Create a ViewComponent-style template with co-located .rb file
+      erb_file = File.join(temp_dir, "my_component.html.erb")
+      rb_file = File.join(temp_dir, "my_component.rb")
+      File.write(erb_file, "<div>Component</div>")
+      File.write(rb_file, "class MyComponent; end")
+
+      result = controller.send(:view_component_template?, erb_file)
+      assert result, "Should detect ViewComponent template when .rb file exists"
+    ensure
+      FileUtils.rm_rf(temp_dir) if temp_dir
+    end
+
+    def test_view_component_template_returns_false_when_no_rb_file
+      controller = PreviewsController.new
+      temp_dir = Dir.mktmpdir
+
+      # Create a regular ERB file without co-located .rb file
+      erb_file = File.join(temp_dir, "regular_template.html.erb")
+      File.write(erb_file, "<div>Template</div>")
+
+      result = controller.send(:view_component_template?, erb_file)
+      refute result, "Should not detect ViewComponent template when .rb file does not exist"
+    ensure
+      FileUtils.rm_rf(temp_dir) if temp_dir
+    end
+
+    def test_find_erb_files_excludes_view_component_templates
+      controller = PreviewsController.new
+      temp_dir = Dir.mktmpdir
+
+      # Simulate Rails root with a ViewComponent template
+      component_erb = File.join(temp_dir, "app", "components", "card_component.html.erb")
+      component_rb = File.join(temp_dir, "app", "components", "card_component.rb")
+      FileUtils.mkdir_p(File.dirname(component_erb))
+      File.write(component_erb, "<div>Card</div>")
+      File.write(component_rb, "class CardComponent; end")
+
+      # Create a regular template that should be included
+      regular_erb = File.join(temp_dir, "app", "custom", "page.html.erb")
+      FileUtils.mkdir_p(File.dirname(regular_erb))
+      File.write(regular_erb, "<div>Page</div>")
+
+      # Stub Rails.root and view_paths
+      mock_rails_root = Pathname.new(temp_dir)
+
+      controller.stub(:view_paths, []) do
+        ::Rails.stub(:root, mock_rails_root) do
+          result = controller.send(:find_erb_files)
+
+          refute result.include?("app/components/card_component.html.erb"),
+            "Should exclude ViewComponent templates"
+          assert result.include?("app/custom/page.html.erb"),
+            "Should include regular templates"
+        end
+      end
+    ensure
+      FileUtils.rm_rf(temp_dir) if temp_dir
+    end
   end
 end

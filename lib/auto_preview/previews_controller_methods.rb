@@ -189,13 +189,25 @@ module AutoPreview
 
         # Skip files already found via view_paths, layouts, auto_preview UI, and common non-template directories
         next if relative.start_with?("app/views/")
-        next if relative.start_with?("node_modules/", "tmp/", "log/", "coverage/")
+        next if relative.start_with?("node_modules/", "tmp/", "log/", "coverage/", "vendor/")
+        # :nocov:
         next if relative.include?("/layouts/") || relative.include?("/auto_preview/")
+        # :nocov:
+
+        # Skip ViewComponent templates (co-located ERB files with corresponding .rb component files)
+        next if view_component_template?(file)
 
         files << relative
       end
 
       files.uniq.sort
+    end
+
+    # Check if an ERB file is a ViewComponent template by looking for a co-located .rb file
+    def view_component_template?(erb_file_path)
+      # ViewComponent templates are named like component.html.erb alongside component.rb
+      component_rb_path = erb_file_path.sub(/\.html\.erb$/, ".rb")
+      File.exist?(component_rb_path)
     end
 
     def view_paths
