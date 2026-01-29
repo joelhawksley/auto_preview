@@ -243,13 +243,17 @@ module AutoPreview
       # Pre-scan template for instance variables and add them to auto_generated_vars
       auto_generated_vars = add_scanned_instance_variables(template_source, auto_generated_vars)
 
+      # Add configured helper methods to vars (merge, preserving user-provided values)
+      auto_generated_vars = add_configured_helper_vars(auto_generated_vars)
+
       begin
         ActiveRecord::Base.transaction do
           locals = LocalsBuilder.build_locals(auto_generated_vars)
           predicate_methods = LocalsBuilder.build_predicates(auto_generated_vars)
           assigns = build_assigns(auto_generated_vars)
+          helper_overrides = build_helper_overrides(auto_generated_vars)
           coverage, content = CoverageTracker.track(template_path, all_erb_paths) do
-            render_template_content(controller_class, render_path, locals, predicate_methods, assigns)
+            render_template_content(controller_class, render_path, locals, predicate_methods, assigns, helper_overrides)
           end
           raise ActiveRecord::Rollback
         end
@@ -275,11 +279,15 @@ module AutoPreview
       end
     end
 
-    def render_template_content(controller_class, render_path, locals, predicate_methods, assigns = {})
+    def render_template_content(controller_class, render_path, locals, predicate_methods, assigns = {}, helper_overrides = {})
       PredicateHelper.ensure_methods(controller_class, predicate_methods)
+      HelperOverrideHelper.ensure_methods(controller_class, helper_overrides)
 
-      # Merge predicate methods into assigns
-      all_assigns = assigns.merge("_auto_preview_predicates" => predicate_methods)
+      # Merge predicate methods and helper overrides into assigns
+      all_assigns = assigns.merge(
+        "_auto_preview_predicates" => predicate_methods,
+        "_auto_preview_helper_overrides" => helper_overrides
+      )
 
       if controller_class.respond_to?(:render)
         controller_class.render(
@@ -300,6 +308,12 @@ module AutoPreview
         predicate_methods.each_key do |method_name|
           view_context.define_singleton_method(method_name.to_sym) do
             (@_auto_preview_predicates || {})[method_name]
+          end
+        end
+
+        helper_overrides.each_key do |method_name|
+          view_context.define_singleton_method(method_name.to_sym) do
+            (@_auto_preview_helper_overrides || {})[method_name]
           end
         end
 
@@ -492,6 +506,49 @@ module AutoPreview
       end
 
       assigns
+    end
+
+    # Add configured helper methods to vars, preserving user-provided values.
+    # Helper methods are marked with a "helper" key to distinguish them in the UI.
+    def add_configured_helper_vars(vars)
+      vars = vars.respond_to?(:to_unsafe_h) ? vars.to_unsafe_h.deep_dup : (vars || {}).deep_dup
+      configured_vars = HelperOverrideHelper.configured_helper_vars
+
+      configured_vars.each do |name, config|
+        # Only add if not already provided by user
+        next if vars.key?(name) || vars.key?(name.to_sym)
+
+        vars[name] = config
+      end
+
+      vars
+    end
+
+    # Build helper overrides hash from vars that are marked as helpers.
+    # Returns a hash of method_name => value for helper methods to override.
+    def build_helper_overrides(vars)
+      overrides = {}
+      return overrides unless vars.is_a?(ActionController::Parameters) || vars.is_a?(Hash)
+
+      vars = vars.respond_to?(:to_unsafe_h) ? vars.to_unsafe_h : vars
+      configured_helpers = AutoPreview.helper_methods.keys.map(&:to_s)
+
+      vars.each do |name, config|
+        name_str = name.to_s
+        # Only include configured helper methods
+        next unless configured_helpers.include?(name_str)
+        next unless config.is_a?(ActionController::Parameters) || config.is_a?(Hash)
+
+        # :nocov:
+        cfg = config.respond_to?(:to_unsafe_h) ? config.to_unsafe_h : config
+        # :nocov:
+        type = cfg["type"] || cfg[:type] || "String"
+        value = cfg["value"] || cfg[:value] || ""
+
+        overrides[name_str] = ValueCoercer.coerce(value, type)
+      end
+
+      overrides
     end
   end
 end

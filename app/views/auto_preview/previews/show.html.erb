@@ -108,6 +108,22 @@
       font-weight: 600;
     }
 
+    .auto-preview-helper-var {
+      background: #fef3c7;
+      border-color: #fcd34d;
+    }
+
+    .auto-preview-helper-badge {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #92400e;
+      background: #fde68a;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
     .auto-preview-type-select,
     .auto-preview-value-input {
       width: 100%;
@@ -535,12 +551,80 @@
           </div>
 
           <% vars = @existing_vars.respond_to?(:to_unsafe_h) ? @existing_vars.to_unsafe_h : (@existing_vars || {}) %>
+          <% configured_helper_names = AutoPreview.helper_methods.keys.map(&:to_s) %>
+          <% helper_vars = vars.select { |name, cfg| configured_helper_names.include?(name.to_s) || (cfg.is_a?(Hash) && cfg["helper"]) } %>
+          <% regular_vars = vars.reject { |name, cfg| configured_helper_names.include?(name.to_s) || (cfg.is_a?(Hash) && cfg["helper"]) } %>
+
+          <% if helper_vars.present? %>
+            <div class="auto-preview-section">
+              <div class="auto-preview-section-title">Helper Methods</div>
+
+              <% helper_vars.each do |name, config| %>
+                <% cfg = config.respond_to?(:to_unsafe_h) ? config.to_unsafe_h : config %>
+                <% cfg = cfg || {} %>
+                <% is_predicate = name.to_s.end_with?("?") %>
+                <% current_type = cfg["type"] || cfg[:type] || (is_predicate ? "Boolean" : "String") %>
+                <% current_value = cfg["value"] || cfg[:value] || "" %>
+                <% param_key = name.to_s.parameterize %>
+
+                <div class="auto-preview-var auto-preview-helper-var">
+                  <div class="auto-preview-var-header">
+                    <span class="auto-preview-var-name"><%= name %></span>
+                    <span class="auto-preview-helper-badge">helper</span>
+                  </div>
+
+                  <select class="auto-preview-type-select"
+                          name="vars[<%= name %>][type]"
+                          onchange="AutoPreview.onTypeChange('<%= param_key %>', this.value)">
+                    <% AutoPreview::PreviewsControllerMethods::RUBY_TYPES.each do |type| %>
+                      <option value="<%= type %>" <%= 'selected' if type == current_type %>><%= type %></option>
+                    <% end %>
+                  </select>
+
+                  <input class="auto-preview-value-input"
+                         type="text"
+                         name="vars[<%= name %>][value]"
+                         id="auto_preview_value_<%= param_key %>"
+                         value="<%= current_value %>"
+                         style="<%= (current_type == 'Boolean' || current_type == 'Factory') ? 'display:none;' : '' %>">
+
+                  <select class="auto-preview-type-select auto-preview-factory-select"
+                          id="auto_preview_factory_<%= param_key %>"
+                          onchange="AutoPreview.setFactory('<%= param_key %>', this.value)"
+                          style="<%= current_type == 'Factory' ? '' : 'display:none;' %>">
+                    <option value="">Select a factory...</option>
+                    <% @factories.each do |factory| %>
+                      <option value="<%= factory[:name] %>" <%= 'selected' if current_value == factory[:name] %>><%= factory[:name] %></option>
+                      <% factory[:traits].each do |trait| %>
+                        <option value="<%= factory[:name] %>:<%= trait %>" <%= 'selected' if current_value == "#{factory[:name]}:#{trait}" %>><%= factory[:name] %>:<%= trait %></option>
+                      <% end %>
+                    <% end %>
+                  </select>
+
+                  <div class="auto-preview-bool-group" id="auto_preview_bool_<%= param_key %>" style="<%= current_type == 'Boolean' ? '' : 'display:none;' %>">
+                    <label>
+                      <input type="radio" name="bool_<%= param_key %>" value="true"
+                             onchange="AutoPreview.setBoolean('<%= param_key %>', 'true')"
+                             <%= 'checked' if current_value.to_s == 'true' %>>
+                      True
+                    </label>
+                    <label>
+                      <input type="radio" name="bool_<%= param_key %>" value="false"
+                             onchange="AutoPreview.setBoolean('<%= param_key %>', 'false')"
+                             <%= 'checked' if current_value.to_s == 'false' %>>
+                      False
+                    </label>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
 
           <div class="auto-preview-section">
             <div class="auto-preview-section-title">Variables</div>
 
-            <% if vars.present? %>
-              <% vars.each do |name, config| %>
+            <% if regular_vars.present? %>
+              <% regular_vars.each do |name, config| %>
                 <% cfg = config.respond_to?(:to_unsafe_h) ? config.to_unsafe_h : config %>
                 <% cfg = cfg || {} %>
                 <% is_predicate = name.to_s.end_with?("?") %>

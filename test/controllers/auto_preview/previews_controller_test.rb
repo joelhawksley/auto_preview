@@ -854,5 +854,57 @@ module AutoPreview
       assert source.present?
       assert_includes source, "<button"
     end
+
+    # Helper method configuration tests
+    def test_show_displays_configured_helper_methods
+      original_helper_methods = AutoPreview.helper_methods
+      AutoPreview.helper_methods = {current_user: :user}
+
+      get "/auto_preview/show", params: {template: "pages/home.html.erb"}
+
+      assert_response :success
+      # Should show the helper methods section
+      assert_includes response.body, "Helper Methods"
+      assert_includes response.body, "current_user"
+      assert_includes response.body, "auto-preview-helper-badge"
+    ensure
+      AutoPreview.helper_methods = original_helper_methods
+    end
+
+    def test_show_renders_with_configured_helper_factory
+      original_helper_methods = AutoPreview.helper_methods
+      AutoPreview.helper_methods = {current_user: :user}
+
+      get "/auto_preview/show", params: {
+        template: "pages/user_card.html.erb",
+        vars: {
+          user: {type: "Factory", value: "user"},
+          current_user: {type: "Factory", value: "user"}
+        }
+      }
+
+      assert_response :success
+    ensure
+      AutoPreview.helper_methods = original_helper_methods
+    end
+
+    def test_show_helper_methods_are_separate_from_regular_vars
+      original_helper_methods = AutoPreview.helper_methods
+      AutoPreview.helper_methods = {current_user: :user}
+
+      get "/auto_preview/show", params: {
+        template: "pages/greeting.html.erb",
+        vars: {name: {type: "String", value: "Alice"}}
+      }
+
+      assert_response :success
+      # Should show both sections
+      assert_includes response.body, "Helper Methods"
+      assert_includes response.body, "Variables"
+      # Helper should be in the helper section (marked with badge)
+      assert_includes response.body, "auto-preview-helper-var"
+    ensure
+      AutoPreview.helper_methods = original_helper_methods
+    end
   end
 end
