@@ -829,10 +829,10 @@ module AutoPreview
       get "/auto_preview/component", params: {component: "ButtonComponent"}
 
       assert_response :success
-      # Should show the Ruby source tab
-      assert_includes response.body, "data-source-tab=\"ruby\""
-      # Should show the Template source tab
-      assert_includes response.body, "data-source-tab=\"template\""
+      # Should show the Ruby source section
+      assert_includes response.body, "auto-preview-panel-header\">Ruby</div>"
+      # Should show the Template source section
+      assert_includes response.body, "auto-preview-panel-header\">Template</div>"
       # Should include the source code data
       assert_includes response.body, "AutoPreviewRubySource"
       assert_includes response.body, "AutoPreviewTemplateSource"
