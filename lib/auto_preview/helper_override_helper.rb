@@ -35,7 +35,11 @@ module AutoPreview
         end
       end
 
-      controller_class.helper(helper_module) if helper_module.instance_methods.any?
+      # Prepend the module to ensure our overrides take precedence over
+      # existing helper methods defined in ApplicationHelper, etc.
+      if helper_module.instance_methods.any?
+        controller_class._helpers.prepend(helper_module)
+      end
     end
 
     # Convert configured helper_methods into vars format for the UI
