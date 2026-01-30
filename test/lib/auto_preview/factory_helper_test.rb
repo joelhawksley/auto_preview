@@ -30,6 +30,13 @@ module AutoPreview
       end
     end
 
+    def test_create_with_nonexistent_factory_returns_nil
+      # Trying to create a factory that doesn't exist should return nil
+      # instead of raising an exception
+      result = FactoryHelper.create("nonexistent_factory")
+      assert_nil result
+    end
+
     def test_all_returns_factories_with_traits
       factories = FactoryHelper.all
       user_factory = factories.find { |f| f[:name] == "user" }

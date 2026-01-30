@@ -1,0 +1,7 @@
+<h1>Current User Card</h1>
+<% if defined?(current_user) && current_user.present? %>
+  <p>Name: <%= current_user.name %></p>
+  <p>Email: <%= current_user.email %></p>
+<% else %>
+  <p>No current user - current_user is: <%= current_user.inspect %></p>
+<% end %>

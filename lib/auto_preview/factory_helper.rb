@@ -20,10 +20,16 @@ module AutoPreview
       factory_name = parts.first.to_sym
       traits = parts[1..].map(&:to_sym)
 
-      if traits.any?
-        FactoryBot.create(factory_name, *traits)
-      else
-        FactoryBot.create(factory_name)
+      begin
+        if traits.any?
+          FactoryBot.create(factory_name, *traits)
+        else
+          FactoryBot.create(factory_name)
+        end
+      rescue KeyError => e
+        # Factory doesn't exist - return nil instead of crashing
+        Rails.logger.warn "[AutoPreview] Factory '#{factory_name}' not found: #{e.message}" if defined?(Rails.logger)
+        nil
       end
     end
 
