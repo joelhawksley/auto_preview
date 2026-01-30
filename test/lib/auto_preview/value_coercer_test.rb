@@ -54,6 +54,26 @@ module AutoPreview
       assert_instance_of User, result
     end
 
+    def test_coerce_proc_evaluates_ruby_code
+      result = ValueCoercer.coerce("1 + 2", "Proc")
+      assert_equal 3, result
+    end
+
+    def test_coerce_proc_with_complex_expression
+      result = ValueCoercer.coerce("[1, 2, 3].map { |x| x * 2 }", "Proc")
+      assert_equal [2, 4, 6], result
+    end
+
+    def test_coerce_proc_with_blank_value
+      result = ValueCoercer.coerce("", "Proc")
+      assert_nil result
+    end
+
+    def test_coerce_proc_with_error_returns_error_message
+      result = ValueCoercer.coerce("undefined_method_xyz", "Proc")
+      assert_match(/Error:/, result)
+    end
+
     def test_coerce_unknown_type_defaults_to_string
       assert_equal "hello", ValueCoercer.coerce("hello", "UnknownType")
     end

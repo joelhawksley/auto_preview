@@ -6,7 +6,7 @@ module AutoPreview
   module PreviewsControllerMethods
     extend ActiveSupport::Concern
 
-    RUBY_TYPES = %w[String Integer Float Boolean Array Hash NilClass Factory].freeze
+    RUBY_TYPES = %w[String Integer Float Boolean Array Hash NilClass Factory Proc].freeze
 
     def index
       @erb_files = find_erb_files

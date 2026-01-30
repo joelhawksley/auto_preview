@@ -204,7 +204,8 @@
         'Array': 'Enter JSON array (e.g., ["a", "b", "c"] or [1, 2, 3])',
         'Hash': 'Enter JSON object (e.g., {"key": "value"})',
         'NilClass': 'Value will be nil (input ignored)',
-        'Factory': 'Select a FactoryBot factory'
+        'Factory': 'Select a FactoryBot factory',
+        'Proc': 'Enter arbitrary Ruby code to evaluate (e.g., User.first)'
       };
 
       const placeholders = {
@@ -215,7 +216,8 @@
         'Array': '["item1", "item2"]',
         'Hash': '{"key": "value"}',
         'NilClass': '(nil)',
-        'Factory': 'user'
+        'Factory': 'user',
+        'Proc': 'User.first'
       };
 
       hint.textContent = hints[type] || 'Enter a value';

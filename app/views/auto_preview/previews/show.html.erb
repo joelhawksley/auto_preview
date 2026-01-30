@@ -136,10 +136,24 @@
     }
 
     .auto-preview-type-select:focus,
-    .auto-preview-value-input:focus {
+    .auto-preview-value-input:focus,
+    .auto-preview-proc-input:focus {
       outline: none;
       border-color: #3b82f6;
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .auto-preview-proc-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      background: #fff;
+      margin-top: 6px;
+      min-height: 60px;
+      resize: vertical;
     }
 
     .auto-preview-bool-group {
@@ -586,7 +600,13 @@
                          name="vars[<%= name %>][value]"
                          id="auto_preview_value_<%= param_key %>"
                          value="<%= current_value %>"
-                         style="<%= (current_type == 'Boolean' || current_type == 'Factory') ? 'display:none;' : '' %>">
+                         style="<%= %w[Boolean Factory Proc].include?(current_type) ? 'display:none;' : '' %>">
+
+                  <textarea class="auto-preview-proc-input"
+                            id="auto_preview_proc_<%= param_key %>"
+                            onchange="AutoPreview.setProc('<%= param_key %>', this.value)"
+                            placeholder="User.first"
+                            style="<%= current_type == 'Proc' ? '' : 'display:none;' %>"><%= current_value if current_type == 'Proc' %></textarea>
 
                   <select class="auto-preview-type-select auto-preview-factory-select"
                           id="auto_preview_factory_<%= param_key %>"
@@ -650,7 +670,13 @@
                          name="vars[<%= name %>][value]"
                          id="auto_preview_value_<%= param_key %>"
                          value="<%= current_value %>"
-                         style="<%= (current_type == 'Boolean' || current_type == 'Factory') ? 'display:none;' : '' %>">
+                         style="<%= %w[Boolean Factory Proc].include?(current_type) ? 'display:none;' : '' %>">
+
+                  <textarea class="auto-preview-proc-input"
+                            id="auto_preview_proc_<%= param_key %>"
+                            onchange="AutoPreview.setProc('<%= param_key %>', this.value)"
+                            placeholder="User.first"
+                            style="<%= current_type == 'Proc' ? '' : 'display:none;' %>"><%= current_value if current_type == 'Proc' %></textarea>
 
                   <select class="auto-preview-type-select auto-preview-factory-select"
                           id="auto_preview_factory_<%= param_key %>"
@@ -739,6 +765,7 @@
         const valueInput = document.getElementById('auto_preview_value_' + paramKey);
         const boolGroup = document.getElementById('auto_preview_bool_' + paramKey);
         const factorySelect = document.getElementById('auto_preview_factory_' + paramKey);
+        const procInput = document.getElementById('auto_preview_proc_' + paramKey);
 
         if (!valueInput || !boolGroup) return;
 
@@ -746,9 +773,11 @@
           valueInput.style.display = 'none';
           boolGroup.style.display = 'flex';
           if (factorySelect) factorySelect.style.display = 'none';
+          if (procInput) procInput.style.display = 'none';
         } else if (type === 'Factory') {
           valueInput.style.display = 'none';
           boolGroup.style.display = 'none';
+          if (procInput) procInput.style.display = 'none';
           if (factorySelect) {
             factorySelect.style.display = 'block';
             // Set value from factory select if one is selected
@@ -756,10 +785,20 @@
               valueInput.value = factorySelect.value;
             }
           }
+        } else if (type === 'Proc') {
+          valueInput.style.display = 'none';
+          boolGroup.style.display = 'none';
+          if (factorySelect) factorySelect.style.display = 'none';
+          if (procInput) {
+            procInput.style.display = 'block';
+            // Sync proc textarea value to hidden input
+            valueInput.value = procInput.value;
+          }
         } else {
           valueInput.style.display = 'block';
           boolGroup.style.display = 'none';
           if (factorySelect) factorySelect.style.display = 'none';
+          if (procInput) procInput.style.display = 'none';
         }
       },
 
@@ -769,6 +808,11 @@
       },
 
       setFactory(paramKey, value) {
+        const valueInput = document.getElementById('auto_preview_value_' + paramKey);
+        valueInput.value = value;
+      },
+
+      setProc(paramKey, value) {
         const valueInput = document.getElementById('auto_preview_value_' + paramKey);
         valueInput.value = value;
       },

@@ -25,6 +25,8 @@ module AutoPreview
         nil
       when "Factory"
         FactoryHelper.create(value)
+      when "Proc"
+        eval_ruby(value)
       else
         value.to_s
       end
@@ -36,6 +38,14 @@ module AutoPreview
       JSON.parse(value)
     rescue JSON::ParserError
       default
+    end
+
+    def eval_ruby(value)
+      return nil if value.blank?
+
+      eval(value) # rubocop:disable Security/Eval
+    rescue => e
+      "Error: #{e.message}"
     end
   end
 end
