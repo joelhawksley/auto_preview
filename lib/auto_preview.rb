@@ -26,13 +26,15 @@ module AutoPreview
   #   AutoPreview.helper_methods = {
   #     current_user: :user,           # Uses the :user factory
   #     current_organization: :organization,  # Uses the :organization factory
-  #     feature_enabled?: :boolean     # Boolean type
+  #     feature_enabled?: :boolean,    # Boolean type
+  #     current_user: -> { FactoryBot.create(:user) }  # Proc for custom logic
   #   }
   #
   # Supported types:
   #   - Factory name (symbol): Will show factory dropdown in UI
   #   - :boolean: Will show true/false radio buttons in UI
   #   - :string, :integer, :float, :array, :hash: Will show text input
+  #   - Proc/Lambda: Will execute the proc each time the helper is called
   mattr_accessor :helper_methods
   self.helper_methods = {}
 end

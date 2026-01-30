@@ -94,5 +94,24 @@ module AutoPreview
       assert_equal "Boolean", result["premium?"]["type"]
       assert_equal "String", result["site_name"]["type"]
     end
+
+    def test_configured_helper_vars_returns_proc_type_for_proc_hint
+      AutoPreview.helper_methods = {current_user: -> { "test" }}
+
+      result = HelperOverrideHelper.configured_helper_vars
+
+      assert_equal "Proc", result["current_user"]["type"]
+      assert_nil result["current_user"]["value"]
+      assert result["current_user"]["helper"]
+    end
+
+    def test_configured_helper_vars_handles_proc_with_factory_call
+      AutoPreview.helper_methods = {current_user: -> { FactoryBot.create(:user) }}
+
+      result = HelperOverrideHelper.configured_helper_vars
+
+      assert_equal "Proc", result["current_user"]["type"]
+      assert_nil result["current_user"]["value"]
+    end
   end
 end

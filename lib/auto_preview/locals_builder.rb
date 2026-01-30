@@ -23,12 +23,17 @@ module AutoPreview
       locals = {}
       return locals unless vars_params.is_a?(ActionController::Parameters) || vars_params.is_a?(Hash)
 
+      # Get configured helper method names to skip them
+      configured_helpers = AutoPreview.helper_methods.keys.map(&:to_s)
+
       vars_params.each do |name, config|
         next unless config.is_a?(ActionController::Parameters) || config.is_a?(Hash)
         # Skip predicate methods - they're handled separately as helper methods
         next if name.to_s.end_with?("?")
         # Skip instance variables - they're handled separately as assigns
         next if name.to_s.start_with?("@")
+        # Skip helper methods - they're handled separately via HelperOverrideHelper
+        next if configured_helpers.include?(name.to_s)
 
         type = config[:type] || config["type"]
         value = config[:value] || config["value"]

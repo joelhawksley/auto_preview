@@ -545,7 +545,13 @@ module AutoPreview
         type = cfg["type"] || cfg[:type] || "String"
         value = cfg["value"] || cfg[:value] || ""
 
-        overrides[name_str] = ValueCoercer.coerce(value, type)
+        # For Proc type, execute the configured proc
+        if type == "Proc"
+          helper_config = AutoPreview.helper_methods[name.to_sym] || AutoPreview.helper_methods[name_str]
+          overrides[name_str] = helper_config.is_a?(Proc) ? helper_config.call : nil
+        else
+          overrides[name_str] = ValueCoercer.coerce(value, type)
+        end
       end
 
       overrides

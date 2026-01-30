@@ -123,5 +123,41 @@ module AutoPreview
       refute result.key?(:"@current_user")
       assert_equal "Test", result[:name]
     end
+
+    def test_build_locals_skips_helper_methods
+      original_helper_methods = AutoPreview.helper_methods
+      AutoPreview.helper_methods = {current_user: :user}
+
+      vars_params = ActionController::Parameters.new({
+        current_user: {type: "Factory", value: "user"},
+        name: {type: "String", value: "Test"}
+      })
+
+      result = LocalsBuilder.build_locals(vars_params)
+
+      # Helper methods should not become locals - they're handled via HelperOverrideHelper
+      refute result.key?(:current_user)
+      assert_equal "Test", result[:name]
+    ensure
+      AutoPreview.helper_methods = original_helper_methods
+    end
+
+    def test_build_locals_skips_proc_type_helper_methods
+      original_helper_methods = AutoPreview.helper_methods
+      AutoPreview.helper_methods = {current_user: -> { "user" }}
+
+      vars_params = ActionController::Parameters.new({
+        current_user: {type: "Proc", value: nil},
+        name: {type: "String", value: "Test"}
+      })
+
+      result = LocalsBuilder.build_locals(vars_params)
+
+      # Proc-type helper methods should not become locals
+      refute result.key?(:current_user)
+      assert_equal "Test", result[:name]
+    ensure
+      AutoPreview.helper_methods = original_helper_methods
+    end
   end
 end

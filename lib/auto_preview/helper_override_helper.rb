@@ -8,7 +8,8 @@ module AutoPreview
   # Example configuration in initializer:
   #   AutoPreview.helper_methods = {
   #     current_user: :user,  # Factory-backed helper
-  #     feature_enabled?: :boolean
+  #     feature_enabled?: :boolean,
+  #     current_user: -> { FactoryBot.create(:user) }  # Proc for custom logic
   #   }
   class HelperOverrideHelper
     def self.ensure_methods(controller_class, helper_overrides)
@@ -60,6 +61,9 @@ module AutoPreview
 
     def infer_type_and_default(type_hint, method_name)
       case type_hint
+      when Proc
+        # Proc type - will be executed at render time
+        ["Proc", nil]
       when :boolean, "boolean", "Boolean"
         ["Boolean", method_name.end_with?("?") ? "true" : "false"]
       when :string, "string", "String"

@@ -125,5 +125,45 @@ module AutoPreview
       assert_includes srcdoc_content, "John Doe"
       refute_includes srcdoc_content, "No current user"
     end
+
+    def test_helper_override_with_proc_executes_proc
+      # When a Proc is configured, it should be executed at render time
+      AutoPreview.helper_methods = {current_user: -> { FactoryBot.create(:user, name: "Proc User") }}
+
+      get "/auto_preview/show", params: {
+        template: "pages/current_user_test.html.erb",
+        vars: {
+          current_user: {type: "Proc", value: ""}
+        }
+      }
+
+      assert_response :success
+      srcdoc_match = response.body.match(/srcdoc="([^"]*)"/)
+      assert srcdoc_match, "Expected to find srcdoc attribute"
+      srcdoc_content = CGI.unescapeHTML(srcdoc_match[1])
+
+      # The proc should have been executed, creating a user with the custom name
+      assert_includes srcdoc_content, "Proc User"
+      refute_includes srcdoc_content, "No current user"
+    end
+
+    def test_helper_override_with_proc_auto_fills
+      # When a Proc is configured and no var is provided, it should auto-fill and execute
+      AutoPreview.helper_methods = {current_user: -> { FactoryBot.create(:user, name: "Auto Proc User") }}
+
+      get "/auto_preview/show", params: {
+        template: "pages/current_user_test.html.erb"
+        # Note: NOT providing current_user in vars
+      }
+
+      assert_response :success
+      srcdoc_match = response.body.match(/srcdoc="([^"]*)"/)
+      assert srcdoc_match, "Expected to find srcdoc attribute"
+      srcdoc_content = CGI.unescapeHTML(srcdoc_match[1])
+
+      # The proc should have been executed
+      assert_includes srcdoc_content, "Auto Proc User"
+      refute_includes srcdoc_content, "No current user"
+    end
   end
 end
