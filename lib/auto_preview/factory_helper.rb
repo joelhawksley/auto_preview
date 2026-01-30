@@ -22,9 +22,9 @@ module AutoPreview
 
       begin
         if traits.any?
-          FactoryBot.create(factory_name, *traits)
+          FactoryBot.build(factory_name, *traits)
         else
-          FactoryBot.create(factory_name)
+          FactoryBot.build(factory_name)
         end
       rescue KeyError => e
         # Factory doesn't exist - return nil instead of crashing
